@@ -1,3 +1,20 @@
+import type { AgentKit } from "@coinbase/agentkit";
+
+export async function invokeAction<T = unknown>(
+  agentkit: AgentKit,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<T> {
+  const action = agentkit.getActions().find((a) => a.name === name);
+  if (!action) throw new Error(`Action not found: ${name}`);
+  const raw = await action.invoke(args);
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return raw as T;
+  }
+}
+
 export class Logger {
   private circuit: string;
 
@@ -6,19 +23,19 @@ export class Logger {
   }
 
   info(message: string, data?: any) {
-    console.log(`[${this.circuit}]   ${message}`, data || "");
+    console.log(`[${this.circuit}] ℹ️  ${message}`, data || "");
   }
 
   success(message: string, data?: any) {
-    console.log(`[${this.circuit}]  ${message}`, data || "");
+    console.log(`[${this.circuit}] ✅ ${message}`, data || "");
   }
 
   error(message: string, error?: any) {
-    console.error(`[${this.circuit}]  ${message}`, error || "");
+    console.error(`[${this.circuit}] ❌ ${message}`, error || "");
   }
 
   warn(message: string, data?: any) {
-    console.warn(`[${this.circuit}]  ${message}`, data || "");
+    console.warn(`[${this.circuit}] ⚠️  ${message}`, data || "");
   }
 }
 

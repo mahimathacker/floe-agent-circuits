@@ -40,6 +40,19 @@
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
     "skipLibCheck": true,
-  }
+  },
+
+  "include": [
+    "**/*.ts",
+    "**/*.tsx"
+  ],
+
+  "exclude": [
+     "node_modules",
+    "dist",
+    "**/results/**",
+    "**/*.test.ts",
+    "**/*.spec.ts"
+  ]
   
 }

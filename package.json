@@ -16,10 +16,9 @@
     "all": "tsx scripts/run-all-circuits.ts",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
-
   },
   "dependencies": {
-    "@coinbase/agentkit": "^0.2.3",
+    "@coinbase/agentkit": "^0.10.4",
     "dotenv": "^17.4.2",
     "floe-agent": "^0.2.0",
     "viem": "^2.48.4",
