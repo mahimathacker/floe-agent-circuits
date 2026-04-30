@@ -1,0 +1,63 @@
+export class Logger {
+  private circuit: string;
+
+  constructor(circuitName: string) {
+    this.circuit = circuitName;
+  }
+
+  info(message: string, data?: any) {
+    console.log(`[${this.circuit}]   ${message}`, data || "");
+  }
+
+  success(message: string, data?: any) {
+    console.log(`[${this.circuit}]  ${message}`, data || "");
+  }
+
+  error(message: string, error?: any) {
+    console.error(`[${this.circuit}]  ${message}`, error || "");
+  }
+
+  warn(message: string, data?: any) {
+    console.warn(`[${this.circuit}]  ${message}`, data || "");
+  }
+}
+
+export class Metrics {
+  private startTime: number;
+  private events: any[] = [];
+
+  constructor() {
+    this.startTime = Date.now();
+  }
+
+  recordEvent(event: string, data: any) {
+    this.events.push({
+      timestamp: Date.now(),
+      event,
+      data,
+    });
+  }
+
+  getElapsedTime(): number {
+    return Date.now() - this.startTime;
+  }
+
+  getSummary() {
+    return {
+      totalDuration: this.getElapsedTime(),
+      events: this.events,
+    };
+  }
+
+  saveToFile(filename: string) {
+    const fs = require("fs");
+    const path = require("path");
+    
+    const dir = path.dirname(filename);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+
+    fs.writeFileSync(filename, JSON.stringify(this.getSummary(), null, 2));
+  }
+}
