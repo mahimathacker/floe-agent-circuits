@@ -103,7 +103,7 @@ async function runCircuit1() {
           collateralAmount: "8000000000000000", // 0.008 WETH
           maxInterestRateBps: "400", // 4% APR cap
           duration: "2592000", // 30 days
-          minLtvBps: "1", // Floor on borrower's accepted LTV. API rejects "0" (must be 1-10000), so "1" = effectively no floor.
+          minLtvBps: "1", // Floor on borrower's accepted LTV. API validation: rejects "0", and rejects values greater than maxLtvBps (cross-field constraint).
         }),
       }
     );

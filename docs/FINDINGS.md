@@ -136,78 +136,108 @@ calling `/v1/credit/instant-borrow`.
 - API: credit-api.floelabs.xyz
 
 
-## Finding #4: `minLtvBps` semantics are inverted from intuition; default 8000 silently rejects over-collateralized borrows
+## Finding #4: I could not figure out what `minLtvBps` does, and it kept blocking my borrow
 
-**Severity:** High — affects the most natural first-time borrow attempt
+**Severity:** High. This was the main thing that blocked my first borrow.
 
-**Issue:** `minLtvBps` is a **borrower-side floor on the LTV the matcher will fill at** — meaning *"I want at least this much leverage."* Setting it *low* (e.g. `0`) is the most permissive; setting it *high* (e.g. `8000` = 80%) is the most restrictive. The default is `8000`, which silently rejects every offer for any borrower who over-collateralizes — the most natural first attempt.
+**What I saw:**
 
-The naming + default combination produces the worst possible UX:
-- The intuitive read of "minLtvBps" is "minimum LTV I'm willing to *accept on the lender side*" (i.e. a safety check). It is not — it is "minimum LTV I want my own loan to be filled at."
-- The default (80%) is restrictive, not permissive — a developer assumes "if I don't set it, anything works."
-- The error you get when it triggers is `NoLiquidityError`, which blames supply rather than your own request.
+1. **The docs give a default but do not say what the field does.** The gitbook page for `/v1/credit/instant-borrow` lists the field as `"minLtvBps  string  No  Min LTV (default: 8000 = 80%)"`. That is all. The page does not say if it is a floor or a ceiling, if it applies to the borrower or the lender, or how it relates to the lender's `maxLtvBps`.
 
-**Reproduction:**
-```json
-POST /v1/credit/instant-borrow
-{
-  "marketId": "0xfe92...2930",
-  "borrowAmount":     "10000000",          // $10 USDC
-  "collateralAmount": "20000000000000000", // 0.02 WETH ≈ $50 → 20% LTV
-  "maxInterestRateBps": "600",
-  "duration": "2592000"
-  // minLtvBps omitted → defaults to 8000 (80%)
-}
-```
-
-**Response:**
-```json
-{
-  "error": "NoLiquidityError",
-  "closestOffers": [
-    { "rate": 50,  "available": 5000000 },
-    { "rate": 290, "available": 1000000000 },
-    { "rate": 500, "available": 990000000 }
-  ]
-}
-```
-
-The 990 USDC offer in the same market easily satisfies the 10 USDC ask at a rate well below the 6% cap — and the offer's `maxLtvBps` (8500) is fine with 20% LTV. But the borrower's **own** `minLtvBps` default of 80% rejects it.
-
-**Where the default comes from:** `node_modules/floe-agent/dist/schemas.js`
-```js
-minLtvBps: z.string().default("8000")
-  .describe("Minimum LTV in basis points (default: 8000 = 80%).")
-```
-
-**Why this is a UX problem:**
-1. **Inverted intuition.** "Minimum LTV" reads as "I won't accept loans riskier than X" — a safety setting. The actual meaning is the opposite: "I won't accept loans more conservative than X." A reader cannot guess this from the field name.
-2. **Restrictive default.** Defaulting to `8000` (the *most* leveraged setting) means every default request requires the borrower to be borrowing 80%+ against their collateral. New users naturally over-collateralize for safety; the default punishes this.
-3. **Error message blames liquidity, not the borrower's own filter.** `NoLiquidityError` plus a `closestOffers` array implies "supply is thin." A developer wastes time investigating the offer book when the issue is the borrower's own knob.
-4. **Undocumented in the public Credit API docs.** The 8000 default is in the SDK schema (`node_modules/floe-agent/dist/schemas.js`) but not surfaced in the gitbook docs at `/v1/credit/instant-borrow`. Discovery requires grepping `node_modules` or filing a support ticket.
-
-**Workaround (applied in [circuit-1-research-agent/index.ts](circuit-1-research-agent/index.ts:101-107)):**
-```json
-"minLtvBps": "0"   // floor of 0 = accept any LTV the offer side allows
-```
-
-**Recommendations for Floe:**
-1. **Change the default to `"0"`.** Most permissive, least surprising. Borrowers who want a leverage floor can opt in.
-2. **Rename the field** to something self-explanatory: `minLeverageBps`, `minUtilizationBps`, or `requireMinLtvBps`. The current name actively misleads — multiple developers (us included) inferred the opposite meaning from it.
-3. **Document the field in the public Credit API docs** with a worked example showing both a leverage-seeking borrow (`minLtvBps: "7000"`) and a safety-first borrow (`minLtvBps: "0"`).
-4. **Distinguish the failure mode in `NoLiquidityError`.** When offers exist that satisfy size+rate+duration but fail the borrower's `minLtvBps` (or the lender's `maxLtvBps`), return a distinct violation:
+2. **Leaving `minLtvBps` out gives `NoLiquidityError` even when offers look like they should match.** With `minLtvBps` not set (so it uses the default of `8000`), this request was rejected:
+   ```json
+   POST /v1/credit/instant-borrow
+   {
+     "marketId": "0xfe92...2930",
+     "borrowAmount":     "10000000",
+     "collateralAmount": "20000000000000000",
+     "maxInterestRateBps": "600",
+     "duration": "2592000"
+   }
+   ```
+   Response:
    ```json
    {
      "error": "NoLiquidityError",
-     "reason": "borrower_min_ltv_not_met",
-     "computed_ltv_bps": 2000,
-     "borrower_min_ltv_bps": 8000
+     "closestOffers": [
+       { "rate": 50,  "available": 5000000 },
+       { "rate": 290, "available": 1000000000 },
+       { "rate": 500, "available": 990000000 }
+     ]
    }
    ```
+   At least one of the closest offers (990 USDC at rate 500) is big enough, cheap enough, and long enough. So the failure is some other reason, probably LTV.
+
+3. **Setting `minLtvBps` low did not help.** I tried `minLtvBps: "1"` (the lowest value the API accepts, since `"0"` is rejected). The same `NoLiquidityError` came back with the same close offers.
+
+4. **The error does not say which rule failed.** `NoLiquidityError` plus a list of close offers reads like "there is no money to lend." It does not say if the failure was on size, rate, duration, borrower LTV, lender LTV, oracle price, or something else. A developer cannot tell which knob to turn next.
+
+5. **Where the default comes from in the SDK:** `node_modules/floe-agent/dist/schemas.js`
+   ```js
+   minLtvBps: z.string().default("8000")
+     .describe("Minimum LTV in basis points (default: 8000 = 80%).")
+   ```
+   The SDK only repeats the same short label as the docs.
+
+**Workaround in the code:** [circuit-1-research-agent/index.ts](circuit-1-research-agent/index.ts:101-107) sends `minLtvBps: "1"`. This avoids the 400 from `"0"` but does not by itself produce a successful borrow.
+
+**Open questions for Floe:**
+- What does `minLtvBps` actually do? Is it a floor for the borrower, a ceiling for the borrower, a filter on offers, or something else?
+- Why is `8000` the default?
+- Why does my request keep failing across many combinations of borrow amount, collateral amount, `minLtvBps`, and `maxInterestRateBps`, even when the offers in the market look like they should match on size, rate, and duration?
+- Is there a way to get the price the matcher uses for the collateral in a given market? Knowing this would let me compute LTV ahead of time. The Credit API does not seem to have an endpoint for it.
+- For the failing request above, which rule actually rejected each close offer?
 
 **Environment:**
 - Network: Base Sepolia
-- Wallet: 0x8F669B63B3111C8C680Ddd87ea75518cEb860593 (`floe-circuit-1`)
+- Wallet: `0x8F669B63B3111C8C680Ddd87ea75518cEb860593` (`floe-circuit-1`)
 - floe-agent version: 0.2.0
 - Date: 2026-05-01
 
+
+## Finding #5: The SDK and the REST API do not agree on what is valid
+
+**Severity:** Medium. Easy to run into, slow to debug.
+
+**Issue:** The rules in the `floe-agent` SDK and the rules the REST API enforces are not the same. A request that the SDK says is fine can still be rejected by the server.
+
+**Examples I saw in this assignment:**
+
+1. **`minLtvBps`: the SDK accepts any string, the API only accepts 1 to 10000.**
+   - SDK: `minLtvBps: z.string().default("8000")` (no minimum, no maximum). See `node_modules/floe-agent/dist/schemas.js`.
+   - API: returns `400 Invalid request body` with `"Must be between 1 and 10000"` when the request includes `"0"`.
+   - So the SDK let me build a request with `"0"`. I sent it. The server said no.
+
+2. **The rule `maxLtvBps >= minLtvBps` is checked by the API but not by the SDK.**
+   - Sending `minLtvBps: "10000"` without setting `maxLtvBps` returns `400 Invalid request body` with `"maxLtvBps must be >= minLtvBps"`.
+   - The SDK does not check the two fields against each other, so a request that passes the SDK's type check can still fail once it reaches the server.
+
+3. **The valid range and the cross-field rule are not in the public docs.** The gitbook page for `/v1/credit/instant-borrow` documents the default for `minLtvBps` (`"Min LTV (default: 8000 = 80%)"`) but does not list the valid range (`1` to `10000`) and does not mention the rule that `maxLtvBps` must be at least `minLtvBps`. The only way I learned these was by sending a request and reading the 400 response. Other fields probably have the same problem; I did not check them all.
+
+**Why this matters:**
+
+- A developer trusts the SDK types. Getting a 400 from the API after the SDK said the request was fine is confusing and slow to debug.
+- Anyone who generates typed clients from the SDK (or from an OpenAPI spec, if Floe has one) will end up with clients that lie about what the API accepts.
+- Rules that only show up in 400 responses are easy to miss until you trip over them, which slows down onboarding.
+
+**Open questions for Floe:**
+- Are there other cross-field rules (besides `maxLtvBps >= minLtvBps`) that the SDK does not check?
+- Is there a single source of truth (OpenAPI spec, JSON schema, internal definition) that both the SDK and the API are meant to follow?
+
+**Environment:**
+- API: `credit-api.floelabs.xyz`
+- SDK: `floe-agent` 0.2.0
+- Date: 2026-05-01
+
+
+## Finding #6: `floe-agent` npm package has no repository link
+
+**Severity:** Low. Easy to fix, but it makes the package harder to trust and harder to file issues against.
+
+The npm metadata for `floe-agent@0.2.0` does not include `repository`, `homepage`, or `bugs` fields. The published tarball is still visible on the npm "Code" tab, but there is no link to the canonical source repo (e.g. GitHub), no "Repository" or "Issues" entry in the npm sidebar, and `npm repo floe-agent` and `npm bugs floe-agent` do not work.
+
+Adding `"repository"` and `"bugs"` blocks to `package.json` is a small change and would let users get to the source history, file issues, and contribute fixes.
+
+**Environment:**
+- Package: `floe-agent` 0.2.0 on npm
+- Date: 2026-05-01
