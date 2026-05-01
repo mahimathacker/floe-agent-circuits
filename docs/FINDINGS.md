@@ -182,11 +182,11 @@ calling `/v1/credit/instant-borrow`.
 **Workaround in the code:** [circuit-1-research-agent/index.ts](circuit-1-research-agent/index.ts:101-107) sends `minLtvBps: "1"`. This avoids the 400 from `"0"` but does not by itself produce a successful borrow.
 
 **Open questions for Floe:**
-- What does `minLtvBps` actually do? Is it a floor for the borrower, a ceiling for the borrower, a filter on offers, or something else?
-- Why is `8000` the default?
-- Why does my request keep failing across many combinations of borrow amount, collateral amount, `minLtvBps`, and `maxInterestRateBps`, even when the offers in the market look like they should match on size, rate, and duration?
-- Is there a way to get the price the matcher uses for the collateral in a given market? Knowing this would let me compute LTV ahead of time. The Credit API does not seem to have an endpoint for it.
-- For the failing request above, which rule actually rejected each close offer?
+1. Is there a minimum collateral value in USD I'm missing?
+2. Can I get the oracle price the matcher uses? (To verify my LTV calculation)
+3. Is there a way to see WHY each offer was rejected in the error response?
+4. Why is minLtvBps defaulting to 8000 in the SDK? (Seems to reject most 
+   natural over-collateralized positions)
 
 **Environment:**
 - Network: Base Sepolia
@@ -206,7 +206,7 @@ calling `/v1/credit/instant-borrow`.
 1. **`minLtvBps`: the SDK accepts any string, the API only accepts 1 to 10000.**
    - SDK: `minLtvBps: z.string().default("8000")` (no minimum, no maximum). See `node_modules/floe-agent/dist/schemas.js`.
    - API: returns `400 Invalid request body` with `"Must be between 1 and 10000"` when the request includes `"0"`.
-   - So the SDK let me build a request with `"0"`. I sent it. The server said no.
+   - So the SDK let me build a request with `"0"`. I sent it. The server for REST API returned an error
 
 2. **The rule `maxLtvBps >= minLtvBps` is checked by the API but not by the SDK.**
    - Sending `minLtvBps: "10000"` without setting `maxLtvBps` returns `400 Invalid request body` with `"maxLtvBps must be >= minLtvBps"`.
@@ -240,4 +240,17 @@ Adding `"repository"` and `"bugs"` blocks to `package.json` is a small change an
 
 **Environment:**
 - Package: `floe-agent` 0.2.0 on npm
+- Date: 2026-05-01
+
+
+## Finding #7: There is no public REST API for Base Sepolia
+
+**Severity:** High. Blocks anyone trying to run the quickstart on testnet.
+
+The only documented Credit API URL is `https://credit-api.floelabs.xyz`. Calling `/v1/markets` returns markets whose token addresses are Base mainnet (USDC `0x833589...02913`, cbBTC `0xcbB7C0...33Bf`). There is no `/sepolia` path, no `X-Network` header, and no separate testnet host listed in the docs. So a developer with a funded Base Sepolia wallet cannot complete a borrow through the REST API, even though Floe deploys testnet contracts (matcher `0xF351...1B2E`, oracle `0x7102...03a5`).
+
+Either a testnet REST endpoint should exist (and be documented), or the docs should clearly say the REST API is mainnet-only and point testnet users at on-chain calls.
+
+**Environment:**
+- API: `credit-api.floelabs.xyz`
 - Date: 2026-05-01
