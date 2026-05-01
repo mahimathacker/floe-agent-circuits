@@ -98,13 +98,12 @@ async function runCircuit1() {
           ...authHeaders,
         },
         body: JSON.stringify({
-          marketId: "0xfe92656527bae8e6d37a9e0bb785383fbb33f1f0c7e29fdd733f5af7390c2930",
-          borrowAmount: "10000000", // $10 USDC
-          collateralAmount: "20000000000000000", // 0.02 WETH
-          maxInterestRateBps: "600", // 12% APR
-         //duration: "604800", // 7 days
-          duration: "2592000", // 30 days (30 * 24 * 60 * 60)
-        //   minLtvBps: "6000", // CHANGED: Min 80% LTV (not maxLtvBps!)
+          marketId: "0xbd0fb0e71705bfb3cc5c5552d9276e6617761b37353bd9e1b37bb65c3af2d7f7",
+          borrowAmount: "5000000", // $5 USDC
+          collateralAmount: "8000000000000000", // 0.008 WETH
+          maxInterestRateBps: "400", // 4% APR cap
+          duration: "2592000", // 30 days
+          minLtvBps: "1", // Floor on borrower's accepted LTV. API rejects "0" (must be 1-10000), so "1" = effectively no floor.
         }),
       }
     );

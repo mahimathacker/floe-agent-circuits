@@ -135,3 +135,79 @@ calling `/v1/credit/instant-borrow`.
 - MarketId: 0xfe92656527bae8e6d37a9e0bb785383fbb33f1f0c7e29fdd733f5af7390c2930
 - API: credit-api.floelabs.xyz
 
+
+## Finding #4: `minLtvBps` semantics are inverted from intuition; default 8000 silently rejects over-collateralized borrows
+
+**Severity:** High — affects the most natural first-time borrow attempt
+
+**Issue:** `minLtvBps` is a **borrower-side floor on the LTV the matcher will fill at** — meaning *"I want at least this much leverage."* Setting it *low* (e.g. `0`) is the most permissive; setting it *high* (e.g. `8000` = 80%) is the most restrictive. The default is `8000`, which silently rejects every offer for any borrower who over-collateralizes — the most natural first attempt.
+
+The naming + default combination produces the worst possible UX:
+- The intuitive read of "minLtvBps" is "minimum LTV I'm willing to *accept on the lender side*" (i.e. a safety check). It is not — it is "minimum LTV I want my own loan to be filled at."
+- The default (80%) is restrictive, not permissive — a developer assumes "if I don't set it, anything works."
+- The error you get when it triggers is `NoLiquidityError`, which blames supply rather than your own request.
+
+**Reproduction:**
+```json
+POST /v1/credit/instant-borrow
+{
+  "marketId": "0xfe92...2930",
+  "borrowAmount":     "10000000",          // $10 USDC
+  "collateralAmount": "20000000000000000", // 0.02 WETH ≈ $50 → 20% LTV
+  "maxInterestRateBps": "600",
+  "duration": "2592000"
+  // minLtvBps omitted → defaults to 8000 (80%)
+}
+```
+
+**Response:**
+```json
+{
+  "error": "NoLiquidityError",
+  "closestOffers": [
+    { "rate": 50,  "available": 5000000 },
+    { "rate": 290, "available": 1000000000 },
+    { "rate": 500, "available": 990000000 }
+  ]
+}
+```
+
+The 990 USDC offer in the same market easily satisfies the 10 USDC ask at a rate well below the 6% cap — and the offer's `maxLtvBps` (8500) is fine with 20% LTV. But the borrower's **own** `minLtvBps` default of 80% rejects it.
+
+**Where the default comes from:** `node_modules/floe-agent/dist/schemas.js`
+```js
+minLtvBps: z.string().default("8000")
+  .describe("Minimum LTV in basis points (default: 8000 = 80%).")
+```
+
+**Why this is a UX problem:**
+1. **Inverted intuition.** "Minimum LTV" reads as "I won't accept loans riskier than X" — a safety setting. The actual meaning is the opposite: "I won't accept loans more conservative than X." A reader cannot guess this from the field name.
+2. **Restrictive default.** Defaulting to `8000` (the *most* leveraged setting) means every default request requires the borrower to be borrowing 80%+ against their collateral. New users naturally over-collateralize for safety; the default punishes this.
+3. **Error message blames liquidity, not the borrower's own filter.** `NoLiquidityError` plus a `closestOffers` array implies "supply is thin." A developer wastes time investigating the offer book when the issue is the borrower's own knob.
+4. **Undocumented in the public Credit API docs.** The 8000 default is in the SDK schema (`node_modules/floe-agent/dist/schemas.js`) but not surfaced in the gitbook docs at `/v1/credit/instant-borrow`. Discovery requires grepping `node_modules` or filing a support ticket.
+
+**Workaround (applied in [circuit-1-research-agent/index.ts](circuit-1-research-agent/index.ts:101-107)):**
+```json
+"minLtvBps": "0"   // floor of 0 = accept any LTV the offer side allows
+```
+
+**Recommendations for Floe:**
+1. **Change the default to `"0"`.** Most permissive, least surprising. Borrowers who want a leverage floor can opt in.
+2. **Rename the field** to something self-explanatory: `minLeverageBps`, `minUtilizationBps`, or `requireMinLtvBps`. The current name actively misleads — multiple developers (us included) inferred the opposite meaning from it.
+3. **Document the field in the public Credit API docs** with a worked example showing both a leverage-seeking borrow (`minLtvBps: "7000"`) and a safety-first borrow (`minLtvBps: "0"`).
+4. **Distinguish the failure mode in `NoLiquidityError`.** When offers exist that satisfy size+rate+duration but fail the borrower's `minLtvBps` (or the lender's `maxLtvBps`), return a distinct violation:
+   ```json
+   {
+     "error": "NoLiquidityError",
+     "reason": "borrower_min_ltv_not_met",
+     "computed_ltv_bps": 2000,
+     "borrower_min_ltv_bps": 8000
+   }
+   ```
+
+**Environment:**
+- Network: Base Sepolia
+- Wallet: 0x8F669B63B3111C8C680Ddd87ea75518cEb860593 (`floe-circuit-1`)
+- floe-agent version: 0.2.0
+- Date: 2026-05-01
+

@@ -48,12 +48,17 @@ async function wrapEth() {
   logger.info(`  tx: ${txHash}`);
   await walletProvider.waitForTransactionReceipt(txHash);
 
-  const wethBalance = await walletProvider.readContract({
-    address: WETH_ADDRESS,
-    abi: WETH_ABI,
-    functionName: "balanceOf",
-    args: [address],
-  });
+  let wethBalance = 0n;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    wethBalance = await walletProvider.readContract({
+      address: WETH_ADDRESS,
+      abi: WETH_ABI,
+      functionName: "balanceOf",
+      args: [address],
+    });
+    if (wethBalance > 0n) break;
+    await new Promise((r) => setTimeout(r, 1500));
+  }
   logger.success(`WETH balance: ${formatEther(wethBalance)}`);
 }
 
