@@ -85,7 +85,7 @@ async function runCircuit1() {
     logger.info("🚀 Starting Circuit 1: Research Agent");
 
     // 1. Get auth headers
-    const authHeaders = await getFloeAuthHeaders();
+    const authHeaders = await getFloeAuthHeaders("circuit-1");
     logger.success(`Authenticated as: ${authHeaders["X-Wallet-Address"]}`);
 
     // 2. Call Floe API to borrow

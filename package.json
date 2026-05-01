@@ -13,6 +13,7 @@
     "circuit-3": "tsx circuit-3-multi-agent/index.ts",
     "setup": "tsx scripts/setup-wallet.ts",
     "faucet": "tsx scripts/request-faucet.ts",
+    "wrap-eth": "tsx scripts/wrap-eth.ts",
     "all": "tsx scripts/run-all-circuits.ts",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
