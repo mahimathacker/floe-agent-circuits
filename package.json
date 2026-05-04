@@ -12,6 +12,7 @@
     "circuit-1:sdk": "tsx circuit-1-research-agent/index.via-sdk.ts",
     "circuit-2": "tsx circuit-2-image-agent/index.ts",
     "circuit-3": "tsx circuit-3-multi-agent/index.ts",
+    "circuit-4": "tsx circuit-4-mcp-Integrations/index.ts",
     "setup": "tsx scripts/setup-wallet.ts",
     "faucet": "tsx scripts/request-faucet.ts",
     "wrap-eth": "tsx scripts/wrap-eth.ts",
