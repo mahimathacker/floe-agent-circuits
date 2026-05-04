@@ -9,6 +9,7 @@
   "type": "module",
   "scripts": {
     "circuit-1": "tsx circuit-1-research-agent/index.ts",
+    "circuit-1:sdk": "tsx circuit-1-research-agent/index.via-sdk.ts",
     "circuit-2": "tsx circuit-2-image-agent/index.ts",
     "circuit-3": "tsx circuit-3-multi-agent/index.ts",
     "setup": "tsx scripts/setup-wallet.ts",
@@ -21,6 +22,7 @@
   },
   "dependencies": {
     "@coinbase/agentkit": "^0.10.4",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "dotenv": "^17.4.2",
     "floe-agent": "^0.2.0",
     "viem": "^2.48.4",

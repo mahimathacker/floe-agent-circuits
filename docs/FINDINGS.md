@@ -254,3 +254,24 @@ Either a testnet REST endpoint should exist (and be documented), or the docs sho
 **Environment:**
 - API: `credit-api.floelabs.xyz`
 - Date: 2026-05-01
+
+
+## Finding #8: MCP server docs snippet does not compile against current `@modelcontextprotocol/sdk`
+
+**Severity:** Low. Code copied straight from the docs fails to type-check.
+
+The custom-agent example on https://floe-labs.gitbook.io/docs/developers/mcp-server uses an older shape of the MCP client SDK. Two issues against the current `@modelcontextprotocol/sdk`:
+
+1. **`Client` constructor is missing `version`.** Docs show `new Client({ name: "my-defi-agent" })`, but the SDK's `Implementation` type requires both `name` and `version`. Result: `Property 'version' is missing in type '{ name: string; }'`.
+
+2. **`callTool` is shown with positional args.** Docs show `client.callTool("get_markets", {})`, but the current SDK takes a single object: `client.callTool({ name: "get_markets", arguments: {} })`. Result: `Argument of type 'string' is not assignable to parameter of type '{ name: string; ... }'`.
+
+Fix in the docs to:
+```ts
+const client = new Client({ name: "my-defi-agent", version: "1.0.0" });
+const markets = await client.callTool({ name: "get_markets", arguments: {} });
+```
+
+**Environment:**
+- Package: `@modelcontextprotocol/sdk` (latest at install time)
+- Date: 2026-05-04
