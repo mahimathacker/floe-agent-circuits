@@ -78,6 +78,8 @@ const [label, setLabel] = useState('');
 
 ## Finding #3: API Error Messages Could Be More Specific
 
+**Status:** Resolved as of 2026-05-11. The error response now includes `primaryReason`, `suggestion`, `rejectionsByCode`, and richer `closestOffers` (with `maxLtvBps`, `minDuration`, `maxDuration`, `minFillAmount`). Original finding kept below as historical record.
+
 **Issue:** NoLiquidityError doesn't indicate why matching failed
 
 **Context:**
@@ -437,4 +439,41 @@ The error doesn't say what's missing or where to fix it. A developer with a vali
 **Environment:**
 - Package: `floe-agent@0.3.0` + `@coinbase/agentkit@0.10.4`
 - Dashboard: `dev-dashboard.floelabs.xyz`
+- Date: 2026-05-11
+
+
+## Finding #12: `/v1/credit/instant-borrow` doesn't actually borrow — it prepares unsigned transactions
+
+**Severity:** Medium. The endpoint name and original example log message ("Loan created!") describe an outcome that doesn't happen.
+
+**What actually happens:** A successful POST to `/v1/credit/instant-borrow` returns:
+
+```json
+{
+  "attemptId": "pending:d5d8ed35-...",
+  "transactions": [
+    { "to": "0x4200…0006", "data": "0x095ea7b3…", "description": "Approve collateral" },
+    { "to": "0x17946cD3…", "data": "0x6a1425e8…", "description": "Register borrow intent" },
+    { "to": "0x17946cD3…", "data": "0x4b3a92ba…", "description": "Match loan intents" }
+  ],
+  "selectedOffer": { ... }
+}
+```
+
+No loan is created. No on-chain state changes. The caller is expected to sign and submit all three transactions themselves, in order, and only then does a loan exist.
+
+**How we noticed:** While running circuit 2's rate-ceiling sweep on a wallet with `$0` on Base mainnet, three "loans" came back as `accepted`. Initially alarming — but inspecting the response revealed that the API had just prepared transactions. Nothing reached the chain.
+
+**Why this matters for DX:**
+- The endpoint name implies execution. A developer reading the docs reasonably believes one POST creates a loan.
+- The original sample code in circuit-1 logged `"Loan created!"` on a 200 response — wrong, but a natural thing to write.
+- This is the central API/SDK divide: REST's `instant-borrow` *prepares*; the SDK's `manual_match_credit` *executes* (signs + submits). Both are valid, but the docs don't make the difference explicit.
+
+**Suggested fixes:**
+1. **Rename or document.** `prepare-borrow` would be honest. If renaming is too invasive, the docs page should open with: *"This endpoint returns unsigned transactions. You must sign and submit them yourself before a loan exists."*
+2. **Make the response shape signal preparation.** `status: "transactions_prepared"` rather than treating it like a created loan.
+3. **Update the example snippets** so they show signing + submitting the returned transactions, not just logging the response.
+
+**Environment:**
+- API: `credit-api.floelabs.xyz/v1/credit/instant-borrow`
 - Date: 2026-05-11
