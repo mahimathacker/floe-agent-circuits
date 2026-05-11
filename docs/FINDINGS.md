@@ -1,21 +1,24 @@
-## FINDING #1: floe-agent package has broken dependencies
-**Severity:** Critical - Blocks AgentKit integration
-**What's broken:**
-- `floe-agent` imports `@floe/credit-sdk` which doesn't exist on npm
-- This makes `floe-agent` unusable out of the box
+## FINDING #1: floe-agent package has broken dependencies — RESOLVED in 0.3.0
+**Severity:** Critical - Blocked AgentKit integration
+**Status:** Resolved upstream in `floe-agent@0.3.0` (verified 2026-05-11).
 
-**Error:**
-Cannot find package '@floe/credit-sdk' imported from
-/node_modules/floe-agent/dist/creditClientAdapter.js
+**Original issue (0.2.0):**
+- `floe-agent@0.2.0` declared `@floe/credit-sdk` as a `file:../floe-monorepo/...` dependency
+- That package was not on npm and not on developer machines, so importing `floeActionProvider` crashed at load time with `Cannot find package '@floe/credit-sdk'`
 
-**Impact:**
-- Developers cannot install and use floe-agent
-- Blocks all AgentKit integration workflows
+**What 0.3.0 changed:**
+- The `@floe/credit-sdk` dependency is gone entirely. `floe-agent@0.3.0` no longer requires it; the package installs and `floeActionProvider` loads cleanly.
 
-**Suggested fix:**
-- Publish `@floe/credit-sdk` to npm
-- OR bundle it within `floe-agent`
-- OR update floe-agent to not require it
+**Verification:**
+- Upgraded with `npm install floe-agent@0.3.0 --legacy-peer-deps` and ran [circuit-1-research-agent/index.via-sdk.ts](../circuit-1-research-agent/index.via-sdk.ts). The provider initializes and the wallet connects. (The script still errors later, but for unrelated reasons noted below.)
+
+**Caveats discovered while verifying the fix:**
+
+1. **`@coinbase/agentkit` has an undeclared `graphql` peer.** Its Superfluid action provider eagerly imports `graphql-request`, which throws `Cannot find module 'graphql'` if `graphql` isn't installed. Worked around with `npm install graphql`. Not Floe's bug, but anyone running the SDK quickstart will hit it.
+
+2. **Peer-dep mismatch still present.** `floe-agent@0.3.0` declares `@coinbase/agentkit@^0.2.0` as a peer, while the current AgentKit is `0.10.x`. `npm install` still needs `--legacy-peer-deps`. The peer range should be widened or updated.
+
+3. **Breaking action-name changes in 0.3.0.** `instant_borrow` no longer exists. The action surface is now `get_markets`, `get_loan`, `post_lend_intent`, `post_borrow_intent`, `match_intents`, `request_credit`, `check_credit_status`, `repay_credit`, etc. Any code or docs that referenced the 0.2.0 names needs to be updated.
 
 ## Finding #2: Developer Dashboard UI Bug - API Key Label Input Loses Focus
 **Severity:** Medium - Reduces UX quality
@@ -275,3 +278,118 @@ const markets = await client.callTool({ name: "get_markets", arguments: {} });
 **Environment:**
 - Package: `@modelcontextprotocol/sdk` (latest at install time)
 - Date: 2026-05-04
+
+
+## Finding #9: `request_credit` asks the RPC for too many blocks at once
+
+**Severity:** High. It is the first read action in the quickstart, and it fails for most new developers.
+
+**What the SDK does:** When you call `request_credit`, the SDK asks the RPC for every "lend offer posted" event from the day the matcher contract was deployed until now. That is one big call, with no splitting.
+
+**Evidence in the SDK source:**
+
+```js
+// node_modules/floe-agent/dist/floeActionProvider.js
+const logs = await this.publicClient.getContractEvents({
+  address: this.matcherAddress,
+  ...
+  fromBlock: MATCHER_DEPLOYMENT_BLOCK,   // fixed start block
+  toBlock: "latest",
+});
+```
+
+```js
+// node_modules/floe-agent/dist/constants.js:532
+export const MATCHER_DEPLOYMENT_BLOCK = 40499040n;
+```
+
+```ts
+// node_modules/floe-agent/dist/types.d.ts
+interface FloeConfig {
+  lendingIntentMatcherAddress: Address;
+  lendingViewsAddress: Address;
+  knownMarketIds: Bytes32[];
+  rpcUrl?: string;
+}
+// No option to change the start block or split the call.
+```
+
+Today the start block is ~40.5M and the latest block is ~42.5M. That is about 2 million blocks of history in one call.
+
+**Why this fails:** Most RPC providers cap how many blocks one log call can cover. The SDK asks for far more than the free tiers allow:
+
+| RPC | Free-tier limit per log call |
+|---|---|
+| `https://mainnet.base.org` (public) | 10,000 blocks |
+| Alchemy free tier | 10 blocks |
+| QuickNode free tier | ~10,000 blocks |
+| Paid tiers | No real limit |
+
+So a new developer following the quickstart with a free RPC always sees an error on the first call. The error comes back as plain text inside the action's response, so it looks like a config mistake instead of a design choice in the SDK.
+
+**Repro:**
+```ts
+const agentkit = await AgentKit.from({
+  walletProvider, // Base mainnet
+  actionProviders: [floeActionProvider({ rpcUrl: "https://mainnet.base.org" })],
+});
+// returns text containing:
+// "Error browsing credit offers: eth_getLogs is limited to a 10,000 range"
+await agentkit.getActions()
+  .find((a) => a.name.endsWith("_request_credit"))!
+  .invoke({ marketId: "0xfe92...2930" });
+```
+
+**Other SDK actions are fine.** `get_markets`, `manual_match_credit`, `check_credit_status`, `repay_credit`, and `get_credit_remaining` all read one piece of contract state or send a transaction. None of them scan logs. The wall is only on offer discovery.
+
+**Workaround used in circuit-1:** Get the list of lend offers from the MCP server (`get_open_lend_intents`) or the REST API (`/v1/credit/offers`). Both use Floe's own server-side index, so no log scan and no RPC limit. Pass the offer hash into the SDK's `manual_match_credit` for the signed step.
+
+**Suggested fixes, in order of preference:**
+1. **Split the call.** Walk the block range in small chunks (e.g. 10,000 blocks at a time) and join the results. Free RPCs would then work.
+2. **Let developers set a start block.** Add a `fromBlock` option to `FloeConfig` so they can ask only for recent history.
+3. **Add a built-in indexer fallback.** A `useIndexer: true` option that gets offers from Floe's REST/MCP server. Signed actions still go straight to the chain.
+4. At minimum, **say in the docs that a paid RPC is needed** so new developers know what to set up before their first call.
+
+**Environment:**
+- Package: `floe-agent@0.3.0` + `@coinbase/agentkit@0.10.4`
+- RPCs tested: `https://mainnet.base.org`, Alchemy free tier
+- Date: 2026-05-11
+
+
+## Finding #10: Schema defaults in `floe-agent` actions are silently dropped when called through AgentKit
+
+**Severity:** Medium. Causes confusing crashes deep inside the SDK on first use.
+
+The `floe-agent` action schemas declare default values, for example in `manual_match_credit`:
+
+```ts
+// node_modules/floe-agent/dist/schemas.js
+matcherCommissionBps: z.string().default("50"),
+expirySeconds: z.string().default("300"),
+```
+
+A developer reading the schema (or the docs that describe these as optional with defaults) reasonably leaves them out of the call. But when the action runs, those fields are `undefined`, and the SDK does:
+
+```js
+// node_modules/floe-agent/dist/floeActionProvider.js
+const expiry = now + BigInt(args.expirySeconds);   // BigInt(undefined) throws
+```
+
+The result is a generic crash returned as a plain string:
+
+> `Error opening credit facility: Cannot convert undefined to a BigInt`
+
+The error doesn't say which field was missing or that a default should have been applied. The developer has to read the SDK source to figure out which "optional" field they actually had to pass.
+
+**Root cause:** AgentKit's `invoke(args)` passes the raw object straight to the action handler. It doesn't run `args` through the Zod schema's `parse`, so `.default(...)` is never evaluated. Every "optional with default" field becomes effectively required.
+
+**Workaround:** pass every defaulted field explicitly, even the ones the schema says are optional. In circuit-1's `manual_match_credit` call we now pass `expirySeconds: "300"` and `matcherCommissionBps: "50"` even though both are documented as defaults.
+
+**Suggested fixes:**
+1. **Run args through the schema inside each action handler** so `.default(...)` actually takes effect. One-line change per action: `args = Schema.parse(args)`.
+2. OR remove `.default(...)` from the schemas and document those fields as required.
+3. Make error messages name the missing field — `Cannot convert undefined to a BigInt` plus a stack trace pointing to user code would have saved an hour.
+
+**Environment:**
+- Package: `floe-agent@0.3.0` + `@coinbase/agentkit@0.10.4`
+- Date: 2026-05-11

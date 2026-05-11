@@ -1,0 +1,34 @@
+{
+  "totalDuration": 3531,
+  "events": [
+    {
+      "timestamp": 1778490598637,
+      "event": "offer_picked",
+      "data": {
+        "offerHash": "0x774e5d5cff2864a4ebc3e95162af2789a25e638560fbd21a352d7ad1b1be8bec",
+        "lender": "0x775ee04ab58cf2b9b42bf37ec0d88fdeb6109238",
+        "onBehalfOf": "0x775ee04ab58cf2b9b42bf37ec0d88fdeb6109238",
+        "amount": "5000000",
+        "filledAmount": "0",
+        "remainingAmount": "5000000",
+        "minFillAmount": "5000000",
+        "minInterestRateBps": "50",
+        "maxLtvBps": "7000",
+        "minDuration": "1814400",
+        "maxDuration": "3283200",
+        "allowPartialFill": true,
+        "validFromTimestamp": "1777311471",
+        "expiry": "1778521071",
+        "marketId": "0xfe92656527bae8e6d37a9e0bb785383fbb33f1f0c7e29fdd733f5af7390c2930",
+        "salt": "0xcf51674a12fddfdf7a805bfce3d036e8c2b5c3234dd143f99f109976176d1b3b",
+        "gracePeriod": "0",
+        "minInterestBps": "5000"
+      }
+    },
+    {
+      "timestamp": 1778490598641,
+      "event": "match_credit_raw",
+      "data": "Error opening credit facility: Cannot convert undefined to a BigInt"
+    }
+  ]
+}

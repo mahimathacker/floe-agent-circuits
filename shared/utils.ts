@@ -5,7 +5,12 @@ export async function invokeAction<T = unknown>(
   name: string,
   args: Record<string, unknown>,
 ): Promise<T> {
-  const action = agentkit.getActions().find((a) => a.name === name);
+  // AgentKit prefixes action names with the provider class name
+  // (e.g. `FloeActionProvider_request_credit`). Match either form.
+  const actions = agentkit.getActions();
+  const action =
+    actions.find((a) => a.name === name) ??
+    actions.find((a) => a.name.endsWith(`_${name}`));
   if (!action) throw new Error(`Action not found: ${name}`);
   const raw = await action.invoke(args);
   try {
@@ -66,10 +71,10 @@ export class Metrics {
     };
   }
 
-  saveToFile(filename: string) {
-    const fs = require("fs");
-    const path = require("path");
-    
+  async saveToFile(filename: string) {
+    const fs = await import("node:fs");
+    const path = await import("node:path");
+
     const dir = path.dirname(filename);
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
