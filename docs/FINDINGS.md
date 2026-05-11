@@ -393,3 +393,48 @@ The error doesn't say which field was missing or that a default should have been
 **Environment:**
 - Package: `floe-agent@0.3.0` + `@coinbase/agentkit@0.10.4`
 - Date: 2026-05-11
+
+
+## Finding #11: x402 SDK quietly requires a dashboard-created "Agent" before any call works
+
+**Severity:** High. Every x402 action returns `Unauthorized` until the developer finds and completes an undocumented setup step in the dashboard.
+
+**What the SDK quickstart says:** The [AgentKit TypeScript quickstart](https://floe-labs.gitbook.io/docs/frameworks/agentkit/agentkit-typescript) shows this snippet for x402 setup:
+
+```ts
+const x402 = x402ActionProvider({
+  facilitatorUrl: "https://credit-api.floelabs.xyz/v1",
+  facilitatorApiKey: process.env.FLOE_AGENT_API_KEY,
+});
+```
+
+It doesn't say where `FLOE_AGENT_API_KEY` comes from. A reasonable assumption is that it's the same key you got from the "API Keys" page in the dashboard — the one used for MCP. It isn't.
+
+**What's actually required:** A separate "Agent" must first be created from a different page of the dashboard: `dev-dashboard.floelabs.xyz/agents` → **Create agent** → fill in name, borrow limit, max rate, expiry. The dashboard provisions a Privy wallet server-side and submits an on-chain `setOperator` delegation. Only then does the Agent receive its own API key, which is what `FLOE_AGENT_API_KEY` must hold.
+
+Without this step, every x402 action call (`get_credit_remaining`, `set_spend_limit`, `estimate_x402_cost`, `x402_fetch`, etc.) returns:
+
+```
+## Credit Remaining (or any other action)
+Error: Unauthorized
+```
+
+The error doesn't say what's missing or where to fix it. A developer with a valid MCP key reasonably assumes their setup is complete and spends time debugging code or env wiring instead of looking for an additional dashboard step.
+
+**How we figured it out:** Only after the `Unauthorized` errors persisted across re-keying, re-running, and verifying the env var did a screenshot of the dashboard's "Agents" tab make it obvious that the credentials live somewhere else entirely.
+
+**Suggested fixes:**
+1. **Add the Agent-creation step to the SDK quickstart.** One paragraph + a screenshot of the dashboard page is enough.
+2. **Make the error message actionable.** Replace `Error: Unauthorized` with `Error: No Agent associated with this API key. Create one at dev-dashboard.floelabs.xyz/agents`.
+3. **Distinguish the two key types in the dashboard UI and env conventions.** Side-by-side in `.env.example`:
+   ```
+   FLOE_API_KEY=...        # for MCP server access
+   FLOE_AGENT_API_KEY=...  # for x402 actions; requires a dashboard-created Agent
+   ```
+
+**Validation after fix:** After creating an agent with Borrow Limit 100 USDC, Max Rate 15%, Expiry 30 days, the same smoke test (`npm run circuit-1:awareness`) returns real data — see [circuit-1-research-agent/results/awareness-2026-05-11.json](../circuit-1-research-agent/results/awareness-2026-05-11.json).
+
+**Environment:**
+- Package: `floe-agent@0.3.0` + `@coinbase/agentkit@0.10.4`
+- Dashboard: `dev-dashboard.floelabs.xyz`
+- Date: 2026-05-11

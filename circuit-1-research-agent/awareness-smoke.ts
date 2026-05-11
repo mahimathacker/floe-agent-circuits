@@ -13,10 +13,11 @@
 
 import { AgentKit } from "@coinbase/agentkit";
 import { x402ActionProvider } from "floe-agent";
-import { Logger, invokeAction } from "../shared/utils.js";
+import { Logger, Metrics, invokeAction } from "../shared/utils.js";
 import { getWalletProvider } from "../shared/wallet.js";
 
 const logger = new Logger("Circuit-1/Awareness");
+const metrics = new Metrics();
 
 async function run() {
   const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
@@ -53,10 +54,18 @@ async function run() {
       const preview =
         typeof out === "string" ? out.slice(0, 300) : JSON.stringify(out).slice(0, 300);
       logger.success(`  ${preview}`);
+      metrics.recordEvent(name, out);
     } catch (e) {
       logger.error(`  ${name} threw`, e);
+      metrics.recordEvent(`${name}_error`, String(e));
     }
   }
+
+  const date = new Date().toISOString().slice(0, 10);
+  await metrics.saveToFile(
+    `circuit-1-research-agent/results/awareness-${date}.json`,
+  );
+  logger.success(`Saved results to circuit-1-research-agent/results/awareness-${date}.json`);
 }
 
 run().catch((e) => {
