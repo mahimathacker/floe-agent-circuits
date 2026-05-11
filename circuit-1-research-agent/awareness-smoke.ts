@@ -19,8 +19,12 @@ import { getWalletProvider } from "../shared/wallet.js";
 const logger = new Logger("Circuit-1/Awareness");
 
 async function run() {
-  const floeApiKey = process.env.FLOE_API_KEY;
-  if (!floeApiKey) throw new Error("FLOE_API_KEY missing");
+  const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
+  if (!floeAgentApiKey) {
+    throw new Error(
+      "FLOE_AGENT_API_KEY missing — create an Agent at dev-dashboard.floelabs.xyz/agents",
+    );
+  }
 
   const walletProvider = await getWalletProvider("circuit-1");
   logger.success(`Wallet ready: ${walletProvider.getAddress()}`);
@@ -30,7 +34,7 @@ async function run() {
     actionProviders: [
       x402ActionProvider({
         facilitatorUrl: "https://credit-api.floelabs.xyz/v1",
-        facilitatorApiKey: floeApiKey,
+        facilitatorApiKey: floeAgentApiKey,
       }),
     ],
   });
