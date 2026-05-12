@@ -16,7 +16,7 @@ import { AgentKit } from "@coinbase/agentkit";
 import { floeActionProvider, x402ActionProvider } from "floe-agent";
 import { Logger, Metrics } from "../shared/utils.js";
 import { getWalletProvider } from "../shared/wallet.js";
-import { runImageAgent, type BorrowParams } from "./agent.js";
+import { runImageAgent, type BorrowParams, type ImageRequest } from "./agent.js";
 
 const logger = new Logger("Circuit-2");
 const metrics = new Metrics();
@@ -36,18 +36,27 @@ const INITIAL_CEILING_BPS = "600"; // 6% — agent's preference
 const MAX_ACCEPTABLE_CEILING_BPS = "1500"; // 15% — matches dashboard Agent cap
 const CEILING_RAISE_BPS = 100; // raise by 1% per rate-rejection
 
-// TODO (Wednesday): replace with real x402-paywalled endpoints.
-// `minifetch.xyz` was a placeholder that doesn't resolve in DNS. Floe's
-// facilitator (`credit-api.floelabs.xyz/v1`) is the authority on which
-// paid endpoints `x402_fetch` can bill against; check the dashboard or
-// Floe docs for a working demo URL before the funded run.
-const IMAGE_URLS = [
-  "https://example.x402-endpoint.tld/image?seed=1",
-  "https://example.x402-endpoint.tld/image?seed=2",
-  "https://example.x402-endpoint.tld/image?seed=3",
-  "https://example.x402-endpoint.tld/image?seed=4",
-  "https://example.x402-endpoint.tld/image?seed=5",
+// Points at our own x402-paywalled image stub server (see x402-image-stub/).
+// On Wednesday: run `npm run x402-server` + `ngrok http 8787`, then set
+// X402_IMAGE_STUB_URL in .env to the ngrok public URL.
+const IMAGE_STUB_URL =
+  process.env.X402_IMAGE_STUB_URL ?? "http://localhost:8787";
+
+const PROMPTS = [
+  "a cat astronaut",
+  "a vaporwave skyline",
+  "a serene mountain lake at dawn",
+  "a robot tending a garden",
+  "abstract neon geometry",
 ];
+
+const IMAGE_REQUESTS: ImageRequest[] = PROMPTS.map((prompt, i) => ({
+  label: `image ${i + 1} — "${prompt}"`,
+  url: `${IMAGE_STUB_URL}/image`,
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ prompt }),
+}));
 
 interface RestOffer {
   offerHash: string;
@@ -133,7 +142,7 @@ async function run() {
 
     const report = await runImageAgent({
       agentkit,
-      imageUrls: IMAGE_URLS,
+      imageRequests: IMAGE_REQUESTS,
       targetImages: TARGET_IMAGES,
       spendLimitRaw: SPEND_LIMIT_RAW,
       borrowParams,

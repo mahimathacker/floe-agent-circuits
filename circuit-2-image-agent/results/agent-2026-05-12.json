@@ -1,8 +1,8 @@
 {
-  "totalDuration": 6571,
+  "totalDuration": 6402,
   "events": [
     {
-      "timestamp": 1778577083423,
+      "timestamp": 1778583842574,
       "event": "offer_picked",
       "data": {
         "offerHash": "0xca4959a2dd2e7f69bf3216b25400d1a5912426bd018f0caaedbc6156ace0757f",
@@ -26,12 +26,12 @@
       }
     },
     {
-      "timestamp": 1778577084742,
+      "timestamp": 1778583843988,
       "event": "spend_limit_set",
-      "data": "## Spend Limit Set\n\n**Cap**: 2.00 USDC\n**Session Started**: 2026-05-12T09:11:24.000Z"
+      "data": "## Spend Limit Set\n\n**Cap**: 2.00 USDC\n**Session Started**: 2026-05-12T11:04:03.000Z"
     },
     {
-      "timestamp": 1778577087138,
+      "timestamp": 1778583845896,
       "event": "borrow_result",
       "data": {
         "success": false,
@@ -48,7 +48,7 @@
       }
     },
     {
-      "timestamp": 1778577087138,
+      "timestamp": 1778583845896,
       "event": "agent_report",
       "data": {
         "imagesGenerated": 0,

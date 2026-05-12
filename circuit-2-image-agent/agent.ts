@@ -126,14 +126,29 @@ export async function tryBorrowWithAdaptiveCeiling(
   };
 }
 
+export interface ImageRequest {
+  url: string;
+  method?: string;
+  headers?: Record<string, string>;
+  body?: string;
+  label?: string;
+}
+
 export interface ImageAgentOptions {
   agentkit: AgentKit;
-  imageUrls: string[];
+  imageRequests: ImageRequest[];
   targetImages: number;
   spendLimitRaw: string;
   borrowParams: BorrowParams;
   adaptive: AdaptiveBorrowOptions;
   metrics?: Metrics;
+}
+
+export interface SpendEvent {
+  label: string;
+  url: string;
+  ok: boolean;
+  preview: string;
 }
 
 export interface ImageAgentReport {
@@ -143,14 +158,14 @@ export interface ImageAgentReport {
   finalCeilingBps: string;
   ceilingHeldAtPreferred: boolean;
   borrow: AdaptiveBorrowResult;
-  spendEvents: { url: string; ok: boolean; preview: string }[];
+  spendEvents: SpendEvent[];
   repayResult?: unknown;
 }
 
 export async function runImageAgent(
   opts: ImageAgentOptions,
 ): Promise<ImageAgentReport> {
-  const { agentkit, imageUrls, targetImages, spendLimitRaw, borrowParams, adaptive, metrics } = opts;
+  const { agentkit, imageRequests, targetImages, spendLimitRaw, borrowParams, adaptive, metrics } = opts;
 
   agentLogger.info(`Setting session spend limit to ${spendLimitRaw} raw USDC`);
   const limitResp = await invokeAction(agentkit, "set_spend_limit", {
@@ -165,26 +180,32 @@ export async function runImageAgent(
   );
   metrics?.recordEvent("borrow_result", borrow);
 
-  const spendEvents: ImageAgentReport["spendEvents"] = [];
+  const spendEvents: SpendEvent[] = [];
   let imagesGenerated = 0;
 
   if (borrow.success) {
-    for (let i = 0; i < imageUrls.length && imagesGenerated < targetImages; i++) {
-      const url = imageUrls[i]!;
-      agentLogger.info(`Generating image ${i + 1}/${targetImages}: ${url}`);
+    for (let i = 0; i < imageRequests.length && imagesGenerated < targetImages; i++) {
+      const req = imageRequests[i]!;
+      const label = req.label ?? `image ${i + 1}`;
+      agentLogger.info(`Generating ${label}: ${req.method ?? "GET"} ${req.url}`);
 
       try {
-        const fetched = await invokeAction(agentkit, "x402_fetch", { url });
+        const fetched = await invokeAction(agentkit, "x402_fetch", {
+          url: req.url,
+          method: req.method ?? "GET",
+          headers: req.headers,
+          body: req.body,
+        });
         const text = typeof fetched === "string" ? fetched : JSON.stringify(fetched);
         const ok = !/^error/i.test(text.trim());
         const preview = text.slice(0, 200);
-        spendEvents.push({ url, ok, preview });
-        metrics?.recordEvent("x402_fetch", { url, ok, preview });
+        spendEvents.push({ label, url: req.url, ok, preview });
+        metrics?.recordEvent("x402_fetch", { label, url: req.url, ok, preview });
         if (ok) imagesGenerated++;
         else agentLogger.warn(`x402_fetch failed: ${preview}`);
       } catch (e) {
-        spendEvents.push({ url, ok: false, preview: String(e) });
-        agentLogger.error(`x402_fetch threw for ${url}`, e);
+        spendEvents.push({ label, url: req.url, ok: false, preview: String(e) });
+        agentLogger.error(`x402_fetch threw for ${req.url}`, e);
       }
     }
   } else {

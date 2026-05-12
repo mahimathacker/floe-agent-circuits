@@ -12,6 +12,7 @@
     "circuit-1:sdk": "tsx --env-file=.env circuit-1-research-agent/index.via-sdk.ts",
     "circuit-1:awareness": "tsx --env-file=.env circuit-1-research-agent/awareness-smoke.ts",
     "circuit-2": "tsx --env-file=.env circuit-2-image-agent/index.ts",
+    "x402-server": "tsx --env-file=.env x402-image-stub/server.ts",
     "circuit-3": "tsx --env-file=.env circuit-3-multi-agent/index.ts",
     "circuit-4": "tsx --env-file=.env circuit-4-mcp-Integrations/index.ts",
     "setup": "tsx --env-file=.env scripts/setup-wallet.ts",
@@ -24,9 +25,14 @@
   },
   "dependencies": {
     "@coinbase/agentkit": "^0.10.4",
+    "@hono/node-server": "^2.0.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
+    "@x402/core": "^2.11.0",
+    "@x402/evm": "^2.11.0",
+    "@x402/hono": "^2.11.0",
     "floe-agent": "^0.3.0",
     "graphql": "^16.14.0",
+    "hono": "^4.12.18",
     "viem": "^2.48.4",
     "zod": "^3.25.76"
   },
