@@ -1,0 +1,76 @@
+{
+  "totalDuration": 6481,
+  "events": [
+    {
+      "timestamp": 1778576727069,
+      "event": "offer_picked",
+      "data": {
+        "offerHash": "0xca4959a2dd2e7f69bf3216b25400d1a5912426bd018f0caaedbc6156ace0757f",
+        "lender": "0x4c10b67fac64d15c0a09918059c59f41fbcafec0",
+        "onBehalfOf": "0x4c10b67fac64d15c0a09918059c59f41fbcafec0",
+        "amount": "500000000",
+        "filledAmount": "0",
+        "remainingAmount": "500000000",
+        "minFillAmount": "1000000",
+        "minInterestRateBps": "500",
+        "maxLtvBps": "8000",
+        "minDuration": "8640",
+        "maxDuration": "1728000",
+        "allowPartialFill": true,
+        "validFromTimestamp": "1777854358",
+        "expiry": "1779063958",
+        "marketId": "0xfe92656527bae8e6d37a9e0bb785383fbb33f1f0c7e29fdd733f5af7390c2930",
+        "salt": "0x75b3197a69f689cd6eea0e3b88683477a1142c2935eed58390a14c1f8f726056",
+        "gracePeriod": "0",
+        "minInterestBps": "0"
+      }
+    },
+    {
+      "timestamp": 1778576728446,
+      "event": "spend_limit_set",
+      "data": "## Spend Limit Set\n\n**Cap**: 2.00 USDC\n**Session Started**: 2026-05-12T09:05:28.000Z"
+    },
+    {
+      "timestamp": 1778576730782,
+      "event": "borrow_result",
+      "data": {
+        "success": false,
+        "loanId": null,
+        "finalCeilingBps": "600",
+        "attempts": [
+          {
+            "ceilingBps": "600",
+            "outcome": "rejected",
+            "detail": "Error opening credit facility: Insufficient balance to execute the transaction.",
+            "reasonClassified": "non_rate"
+          }
+        ]
+      }
+    },
+    {
+      "timestamp": 1778576730782,
+      "event": "agent_report",
+      "data": {
+        "imagesGenerated": 0,
+        "imagesAttempted": 0,
+        "initialCeilingBps": "600",
+        "finalCeilingBps": "600",
+        "ceilingHeldAtPreferred": true,
+        "borrow": {
+          "success": false,
+          "loanId": null,
+          "finalCeilingBps": "600",
+          "attempts": [
+            {
+              "ceilingBps": "600",
+              "outcome": "rejected",
+              "detail": "Error opening credit facility: Insufficient balance to execute the transaction.",
+              "reasonClassified": "non_rate"
+            }
+          ]
+        },
+        "spendEvents": []
+      }
+    }
+  ]
+}

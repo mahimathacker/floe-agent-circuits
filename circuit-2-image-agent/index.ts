@@ -1,17 +1,22 @@
-// Circuit 2 — Image Agent Rate-Ceiling Test (REST baseline).
+// Circuit 2 — Image Agent (full agent behavior, SDK path).
 //
-// Story: an AI image agent borrows USDC to pay for image generation, but
-// it's price-conscious — it won't take a loan above a stated ceiling.
-// We test if Floe's REST `/v1/credit/instant-borrow` enforces that
-// ceiling correctly.
+// Story: an AI image agent has a goal (N images) and a rate preference
+// (won't pay above 6%). It borrows, generates images via x402, and
+// repays. If the borrow is rejected for rate reasons, it raises its
+// ceiling by 1% and tries again, up to a hard cap (matches the Agent's
+// dashboard-configured max rate of 15%). Reports whether the agent's
+// preferred ceiling held over the session.
 //
-// Test: adaptive sweep of `maxInterestRateBps` values. For each ceiling,
-// log accept/reject + the error shape. The output answers: at what bps
-// does Floe start rejecting? Are the rejection messages clear about why?
+// Discovery: REST `/v1/credit/offers` (no log scan needed — see Finding #9).
+// Borrow:    SDK `manual_match_credit` (signed by CDP wallet).
+// Spend:     SDK `x402_fetch` (auto-pays from the Agent's credit line).
+// Repay:     SDK `repay_credit`.
 
-import { getFloeAuthHeaders } from "../shared/auth.js";
+import { AgentKit } from "@coinbase/agentkit";
+import { floeActionProvider, x402ActionProvider } from "floe-agent";
 import { Logger, Metrics } from "../shared/utils.js";
-import { rateCeilingSweep, type SweepReport } from "./agent.js";
+import { getWalletProvider } from "../shared/wallet.js";
+import { runImageAgent, type BorrowParams } from "./agent.js";
 
 const logger = new Logger("Circuit-2");
 const metrics = new Metrics();
@@ -19,94 +24,152 @@ const metrics = new Metrics();
 const MARKET_ID =
   "0xfe92656527bae8e6d37a9e0bb785383fbb33f1f0c7e29fdd733f5af7390c2930"; // USDC/WETH on Base mainnet
 
-// Sweep from very tight (below any offer's min rate) to very loose.
-// Real offers in this market today sit around 50-500 bps, so this
-// brackets both rejection-on-too-tight and acceptance regions.
-const CEILINGS_BPS = ["10", "50", "100", "300", "600", "1000", "1500"];
+const TARGET_IMAGES = 5;
+const SPEND_LIMIT_RAW = "2000000"; // $2 cap on x402 spend this session
 
-const REQUEST = {
-  marketId: MARKET_ID,
-  borrowAmount: "5000000", // 5 USDC
-  collateralAmount: "20000000000000000", // 0.02 WETH
-  duration: "2592000", // 30 days
-  minLtvBps: "1000",
-  // Must be ≤ cheapest offer's maxLtvBps (7000 today). The API returns
-  // an explicit `suggestion` field when this is wrong — see Finding #3.
-  maxLtvBps: "7000",
-};
+const BORROW_AMOUNT = "2000000"; // $2 USDC — covers 5 images + slack
+const COLLATERAL_AMOUNT = "20000000000000000"; // 0.02 WETH
+const DURATION_SECONDS = "1296000"; // 15 days — fits current offers' maxDuration
+const MIN_LTV_BPS = "1000";
 
-async function attemptBorrow(ceilingBps: string) {
-  const authHeaders = await getFloeAuthHeaders("circuit-2");
-  const res = await fetch(
-    "https://credit-api.floelabs.xyz/v1/credit/instant-borrow",
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...authHeaders },
-      body: JSON.stringify({ ...REQUEST, maxInterestRateBps: ceilingBps }),
-    },
+const INITIAL_CEILING_BPS = "600"; // 6% — agent's preference
+const MAX_ACCEPTABLE_CEILING_BPS = "1500"; // 15% — matches dashboard Agent cap
+const CEILING_RAISE_BPS = 100; // raise by 1% per rate-rejection
+
+// TODO (Wednesday): replace with real x402-paywalled endpoints.
+// `minifetch.xyz` was a placeholder that doesn't resolve in DNS. Floe's
+// facilitator (`credit-api.floelabs.xyz/v1`) is the authority on which
+// paid endpoints `x402_fetch` can bill against; check the dashboard or
+// Floe docs for a working demo URL before the funded run.
+const IMAGE_URLS = [
+  "https://example.x402-endpoint.tld/image?seed=1",
+  "https://example.x402-endpoint.tld/image?seed=2",
+  "https://example.x402-endpoint.tld/image?seed=3",
+  "https://example.x402-endpoint.tld/image?seed=4",
+  "https://example.x402-endpoint.tld/image?seed=5",
+];
+
+interface RestOffer {
+  offerHash: string;
+  remainingAmount: string;
+  minInterestRateBps: string;
+  maxLtvBps: string;
+  minDuration: string;
+  maxDuration: string;
+  expiry: string;
+}
+
+async function pickLendIntent(): Promise<RestOffer> {
+  const url = `https://credit-api.floelabs.xyz/v1/credit/offers?marketId=${MARKET_ID}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Offers fetch failed: ${res.status} ${await res.text()}`);
+  }
+  const { offers } = (await res.json()) as { offers: RestOffer[] };
+
+  const now = BigInt(Math.floor(Date.now() / 1000));
+  const fit = offers.filter((o) => {
+    return (
+      BigInt(o.remainingAmount) >= BigInt(BORROW_AMOUNT) &&
+      BigInt(o.minDuration) <= BigInt(DURATION_SECONDS) &&
+      BigInt(o.maxDuration) >= BigInt(DURATION_SECONDS) &&
+      BigInt(o.expiry) > now
+    );
+  });
+
+  if (fit.length === 0) {
+    throw new Error(
+      `No matching offers for market ${MARKET_ID}. Got ${offers.length} total.`,
+    );
+  }
+
+  fit.sort(
+    (a, b) => Number(BigInt(a.minInterestRateBps) - BigInt(b.minInterestRateBps)),
   );
-
-  const body = await res.text();
-  let parsed: unknown = body;
-  try {
-    parsed = JSON.parse(body);
-  } catch {
-    /* keep as string */
-  }
-
-  if (res.ok) {
-    // /v1/credit/instant-borrow returns prepared (unsigned) transactions,
-    // not a loan. The caller must still sign and submit them on-chain.
-    const txCount = Array.isArray(
-      (parsed as { transactions?: unknown[] }).transactions,
-    )
-      ? (parsed as { transactions: unknown[] }).transactions.length
-      : 0;
-    return {
-      accepted: true,
-      detail: `prepared ${txCount} transactions for submission`,
-      raw: parsed,
-    };
-  }
-  const detail =
-    typeof parsed === "object" && parsed && "error" in parsed
-      ? `${(parsed as { error: string }).error}: ${
-          (parsed as { message?: string }).message ?? ""
-        }`
-      : body;
-  return { accepted: false, detail, raw: parsed };
+  return fit[0]!;
 }
 
 async function run() {
   try {
-    logger.info("Starting Circuit 2: rate-ceiling sweep via REST");
-    logger.info(`Ceilings to test (bps): ${CEILINGS_BPS.join(", ")}`);
+    logger.info("Starting Circuit 2 (SDK image agent, full behavior loop)");
 
-    const report: SweepReport = await rateCeilingSweep({
-      ceilingsBps: CEILINGS_BPS,
-      attempt: attemptBorrow,
+    const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
+    if (!floeAgentApiKey) {
+      throw new Error(
+        "FLOE_AGENT_API_KEY missing — create an Agent at dev-dashboard.floelabs.xyz/agents",
+      );
+    }
+
+    const walletProvider = await getWalletProvider("circuit-2");
+    logger.success(`Wallet ready: ${walletProvider.getAddress()}`);
+
+    logger.info("Fetching lend offers via REST...");
+    const offer = await pickLendIntent();
+    logger.success(
+      `Picked offer ${offer.offerHash.slice(0, 10)}… at ${offer.minInterestRateBps} bps`,
+    );
+    metrics.recordEvent("offer_picked", offer);
+
+    const agentkit = await AgentKit.from({
+      walletProvider,
+      actionProviders: [
+        floeActionProvider(),
+        x402ActionProvider({
+          facilitatorUrl: "https://credit-api.floelabs.xyz/v1",
+          facilitatorApiKey: floeAgentApiKey,
+        }),
+      ],
     });
 
-    metrics.recordEvent("sweep_report", report);
+    const borrowParams: BorrowParams = {
+      lendIntentHash: offer.offerHash,
+      marketId: MARKET_ID,
+      borrowAmount: BORROW_AMOUNT,
+      collateralAmount: COLLATERAL_AMOUNT,
+      minLtvBps: MIN_LTV_BPS,
+      duration: DURATION_SECONDS,
+      // maxLtvBps is on the offer side; we don't pass it to manual_match_credit
+    };
+
+    const report = await runImageAgent({
+      agentkit,
+      imageUrls: IMAGE_URLS,
+      targetImages: TARGET_IMAGES,
+      spendLimitRaw: SPEND_LIMIT_RAW,
+      borrowParams,
+      adaptive: {
+        startingCeilingBps: INITIAL_CEILING_BPS,
+        maxAcceptableCeilingBps: MAX_ACCEPTABLE_CEILING_BPS,
+        ceilingRaiseBps: CEILING_RAISE_BPS,
+      },
+      metrics,
+    });
+
+    metrics.recordEvent("agent_report", report);
 
     logger.info("──────── Summary ────────");
-    logger.info(
-      `First-accepted ceiling: ${report.acceptedAtBps ?? "(none)"}`,
-    );
-    logger.info(
-      `Highest-rejected ceiling: ${report.rejectionThresholdBps ?? "(none)"}`,
-    );
-    for (const a of report.attempts) {
-      logger.info(`  ${a.ceilingBps.padStart(5)} bps  ${a.outcome.padEnd(9)}  ${a.detail.slice(0, 120)}`);
+    logger.info(`Initial ceiling preference: ${report.initialCeilingBps} bps`);
+    logger.info(`Final ceiling used:         ${report.finalCeilingBps} bps`);
+    logger.info(`Ceiling held at preferred:  ${report.ceilingHeldAtPreferred}`);
+    logger.info(`Borrow succeeded:           ${report.borrow.success}`);
+    logger.info(`Images generated:           ${report.imagesGenerated}/${TARGET_IMAGES}`);
+    logger.info(`Borrow attempts:`);
+    for (const a of report.borrow.attempts) {
+      logger.info(
+        `  ${a.ceilingBps.padStart(5)} bps  ${a.outcome.padEnd(9)}  ${a.detail.slice(0, 80)}`,
+      );
     }
 
     const date = new Date().toISOString().slice(0, 10);
     await metrics.saveToFile(
-      `circuit-2-image-agent/results/sweep-${date}.json`,
+      `circuit-2-image-agent/results/agent-${date}.json`,
     );
-    logger.success("Circuit 2 complete");
+    logger.success("Circuit 2 (SDK) complete");
   } catch (error) {
-    logger.error("Circuit 2 failed", error);
+    logger.error("Circuit 2 (SDK) failed", error);
+    await metrics.saveToFile(
+      `circuit-2-image-agent/results/agent-${Date.now()}-failed.json`,
+    );
     process.exit(1);
   }
 }
