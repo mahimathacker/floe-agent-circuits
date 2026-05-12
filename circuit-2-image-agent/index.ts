@@ -39,6 +39,15 @@ const CEILING_RAISE_BPS = 100; // raise by 1% per rate-rejection
 // Points at our own x402-paywalled image stub server (see x402-image-stub/).
 // On Wednesday: run `npm run x402-server` + `ngrok http 8787`, then set
 // X402_IMAGE_STUB_URL in .env to the ngrok public URL.
+//
+// Fallback — verified Floe-compatible image-gen endpoints from the Floe
+// docs (https://floe-labs.gitbook.io/docs/developers/x402-directory/media-generation).
+// Swap one in if our own stub has issues:
+//   - Spraay     POST https://api.spraay.ai/v1/run          $0.02 USDC
+//   - Soundside  POST https://api.soundside.ai/v1/generate  $0.02 USDC
+//   - Freepik    POST https://api.freepik.com/v1/x402/generate $0.02 USDC
+//   - Imference  POST https://api.imference.com/v1/generate $0.05 USDC
+//   - Kodo       POST https://api.kodo.ai/v1/create         $0.05 USDC
 const IMAGE_STUB_URL =
   process.env.X402_IMAGE_STUB_URL ?? "http://localhost:8787";
 

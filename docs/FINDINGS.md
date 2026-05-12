@@ -442,3 +442,16 @@ The error doesn't say what's missing or where to fix it. A developer with a vali
 - Date: 2026-05-11
 
 
+## Finding #12: Docs don't say Floe's facilitator URL is payer-only
+
+**Severity:** Low.
+
+`https://credit-api.floelabs.xyz` works for *paying* (Bearer-auth via `FLOE_AGENT_API_KEY`), but `@x402/hono`'s `HTTPFacilitatorClient` can't use it on the server side — gets `401 Missing required auth headers`. Server-side x402 verification needs a different facilitator (e.g. `https://facilitator.openx402.ai`).
+
+This is fine as architecture (Floe layers credit on top of vanilla x402, doesn't compete with merchant-side facilitators), but the x402 docs page doesn't say it. A developer building both sides wastes time trying the same URL on both.
+
+**Fix:** One line on the x402 component page: *"Floe is the payer-side facilitator. Server-side x402 verification uses any standard facilitator (e.g. OpenX402)."*
+
+**Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-12
+
+
