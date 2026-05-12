@@ -1,0 +1,25 @@
+{
+  "totalDuration": 4904,
+  "events": [
+    {
+      "timestamp": 1778577857235,
+      "event": "get_credit_remaining",
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 100.00 USDC\n**Utilization**: 0.00%\n**Session Cap**: 2.00 USDC (remaining 2.00 USDC)"
+    },
+    {
+      "timestamp": 1778577858904,
+      "event": "get_loan_state",
+      "data": "## Loan State\n\n**State**: idle\n**Reason**: no_active_borrow_or_repay\n**Details**: {\n  \"available\": \"0\",\n  \"creditLimit\": \"100000000\",\n  \"utilizationBps\": 0\n}"
+    },
+    {
+      "timestamp": 1778577859226,
+      "event": "get_spend_limit",
+      "data": "## Spend Limit\n\n**Cap**: 2.00 USDC\n**Spent this session**: 0.00 USDC\n**Remaining**: 2.00 USDC"
+    },
+    {
+      "timestamp": 1778577859726,
+      "event": "list_credit_thresholds",
+      "data": "## Credit Thresholds\n\nNone registered."
+    }
+  ]
+}
