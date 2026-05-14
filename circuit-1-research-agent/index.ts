@@ -1,58 +1,99 @@
-import { getFloeAuthHeaders } from "../shared/auth.js";
-import { Logger, Metrics } from "../shared/utils.js";
+// Circuit 1 — Credit-Line Quickstart.
+//
+// The simplest possible Floe demo: an agent makes one x402-paid call
+// using nothing but its Floe credit line. No manual loan, no collateral,
+// no gas. The agent starts with $0 USDC; if Floe's auto-credit works as
+// advertised, the call should succeed and credit gets drawn down.
+//
+// This is intentionally minimal. The point of circuit 1 is to measure
+// the *onboarding DX* of Floe's headline product flow — the experience
+// of the first 5 minutes a new developer has with Floe. The deep
+// notes live in circuit-1-research-agent/README.md.
+//
+// For the power-user manual-loan flow (collateral, rate-ceiling logic,
+// CDP wallet borrow signing), see `index.loan-rest.ts` and
+// `index.loan-sdk.ts`.
+
+import { AgentKit } from "@coinbase/agentkit";
+import { x402ActionProvider } from "floe-agent";
+import { Logger, Metrics, invokeAction } from "../shared/utils.js";
+import { getWalletProvider } from "../shared/wallet.js";
 
 const logger = new Logger("Circuit-1");
+const metrics = new Metrics();
 
-async function runCircuit1() {
-  try {
-    logger.info("🚀 Starting Circuit 1: Research Agent");
+// $1 session cap. Tight on purpose — the test is "credit works", not
+// "spend a lot". Plenty for one x402 call.
+const SPEND_LIMIT_RAW = "1000000";
 
-    // 1. Get auth headers
-    const authHeaders = await getFloeAuthHeaders("circuit-1");
-    logger.success(`Authenticated as: ${authHeaders["X-Wallet-Address"]}`);
+// One x402-paid call. Defaults to our local stub (`x402-image-stub`) —
+// swap to any Floe-verified endpoint via env to demo against a real
+// service. Examples from Floe's directory:
+//   - Firecrawl scrape:  https://api.firecrawl.dev/v1/x402/scrape
+//   - Soundside image:   https://api.soundside.ai/v1/generate
+const FETCH_URL =
+  (process.env.X402_IMAGE_STUB_URL ?? "http://localhost:8787") + "/image";
 
-    // 2. Call Floe API to borrow
-    const response = await fetch(
-      "https://credit-api.floelabs.xyz/v1/credit/instant-borrow",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...authHeaders,
-        },
-        body: JSON.stringify({
-          marketId: "0xfe92656527bae8e6d37a9e0bb785383fbb33f1f0c7e29fdd733f5af7390c2930",
-          borrowAmount: "5000000", // $5 USDC
-          collateralAmount: "10000000000000000", // 0.008 WETH
-          maxInterestRateBps: "600", // 4% APR cap
-          duration: "2592000", // 30 days
-          minLtvBps: "1000", // Floor on borrower's accepted LTV. API validation: rejects "0", and rejects values greater than maxLtvBps (cross-field constraint).
-        }),
-      }
+async function run() {
+  logger.info("Starting Circuit 1 (credit-line quickstart)");
+
+  const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
+  if (!floeAgentApiKey) {
+    throw new Error(
+      "FLOE_AGENT_API_KEY missing — create an Agent at dev-dashboard.floelabs.xyz/agents",
     );
-
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Floe API error: ${response.status} - ${error}`);
-    }
-
-    const loan = await response.json();
-    logger.success("Loan created!");
-    logger.info("Loan details:", loan);
-
-    // 3. Save results
-    const timestamp = new Date().toISOString().replace(/:/g, "-");
-    const fs = await import("fs");
-    fs.writeFileSync(
-      `circuit-1-research-agent/results/run-${timestamp}.json`,
-      JSON.stringify(loan, null, 2)
-    );
-
-    logger.success("Circuit 1 complete! ✨");
-  } catch (error) {
-    logger.error("Circuit 1 failed", error);
-    process.exit(1);
   }
+
+  const walletProvider = await getWalletProvider("circuit-1");
+  logger.success(`Wallet ready: ${walletProvider.getAddress()}`);
+
+  const agentkit = await AgentKit.from({
+    walletProvider,
+    actionProviders: [
+      x402ActionProvider({
+        facilitatorUrl: "https://credit-api.floelabs.xyz/v1",
+        facilitatorApiKey: floeAgentApiKey,
+      }),
+    ],
+  });
+
+  // ── The whole demo in 5 calls ──────────────────────────────────────────
+  const before = await invokeAction(agentkit, "get_credit_remaining", {});
+  logger.info("Credit before:", before);
+  metrics.recordEvent("credit_before", before);
+
+  const limitResp = await invokeAction(agentkit, "set_spend_limit", {
+    limitRaw: SPEND_LIMIT_RAW,
+  });
+  logger.info("Spend limit set:", limitResp);
+  metrics.recordEvent("spend_limit_set", limitResp);
+
+  logger.info(`Fetching: POST ${FETCH_URL}`);
+  const fetched = await invokeAction(agentkit, "x402_fetch", {
+    url: FETCH_URL,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ prompt: "hello, floe credit line" }),
+  });
+  logger.info("Fetched:", fetched);
+  metrics.recordEvent("x402_fetch", fetched);
+
+  const after = await invokeAction(agentkit, "get_credit_remaining", {});
+  logger.info("Credit after:", after);
+  metrics.recordEvent("credit_after", after);
+  // ───────────────────────────────────────────────────────────────────────
+
+  const date = new Date().toISOString().slice(0, 10);
+  await metrics.saveToFile(
+    `circuit-1-research-agent/results/quickstart-${date}.json`,
+  );
+  logger.success("Circuit 1 complete");
 }
 
-runCircuit1();
+run().catch(async (err) => {
+  logger.error("Circuit 1 failed", err);
+  await metrics.saveToFile(
+    `circuit-1-research-agent/results/quickstart-${Date.now()}-failed.json`,
+  );
+  process.exit(1);
+});

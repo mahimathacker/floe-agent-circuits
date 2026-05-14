@@ -9,8 +9,9 @@
   "type": "module",
   "scripts": {
     "circuit-1": "tsx --env-file=.env circuit-1-research-agent/index.ts",
-    "circuit-1:sdk": "tsx --env-file=.env circuit-1-research-agent/index.via-sdk.ts",
     "circuit-1:awareness": "tsx --env-file=.env circuit-1-research-agent/awareness-smoke.ts",
+    "circuit-1:loan-rest": "tsx --env-file=.env circuit-1-research-agent/index.loan-rest.ts",
+    "circuit-1:loan-sdk": "tsx --env-file=.env circuit-1-research-agent/index.loan-sdk.ts",
     "circuit-2": "tsx --env-file=.env circuit-2-image-agent/index.ts",
     "x402-server": "tsx --env-file=.env x402-image-stub/server.ts",
     "circuit-3": "tsx --env-file=.env circuit-3-multi-agent/index.ts",

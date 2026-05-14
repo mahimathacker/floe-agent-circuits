@@ -39,4 +39,6 @@ npm run all
 
 ## Project Structure
 
-0x8F669B63B3111C8C680Ddd87ea75518cEb860593
+0x8F669B63B3111C8C680Ddd87ea75518cEb860593 
+
+0xe5dc7bb36ade07a0454dd5a95ffdff3f628dd678 -> Agent address (floe-circuit-test, created 2026-05-14, expires 2026-06-13)
