@@ -455,3 +455,61 @@ This is fine as architecture (Floe layers credit on top of vanilla x402, doesn't
 **Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-12
 
 
+## Finding #13: Floe's "x402 directory" advertises endpoints that are dead or non-x402; `blocked_destination` error masks the real cause
+
+**Severity:** Critical. The headline x402 demo flow can't be completed using Floe's own published directory of "compatible" endpoints.
+
+**What happens:** `x402_fetch` returns:
+```
+Facilitator error: blocked_destination
+```
+…for endpoints Floe themselves advertise as compatible. Probing each via the unauthenticated `GET /v1/proxy/check` reveals the underlying problem.
+
+**Evidence — all 6 endpoints in the [media-generation directory](https://floe-labs.gitbook.io/docs/developers/x402-directory/media-generation), each advertised as *"Floe compatible: Yes"*:**
+
+| Endpoint | `/v1/proxy/check` result |
+|---|---|
+| `https://api.freepik.com/v1/x402/generate` | `{"x402":false,"status":401,"message":"This URL does not require x402 payment"}` |
+| `https://api.genbase.ai/v1/video` | SSL handshake failure (`alert number 40`) |
+| `https://api.imference.com/v1/generate` | `{"error":"blocked_destination","reason":"dns_failure","detail":"No A/AAAA records for api.imference.com"}` |
+| `https://api.kodo.ai/v1/create` | TLS unrecognized name (`alert number 112`) |
+| `https://api.soundside.ai/v1/generate` | `{"x402":false,"status":404,"message":"This URL does not require x402 payment"}` |
+| `https://api.spraay.ai/v1/run` | `{"error":"blocked_destination","reason":"dns_failure","detail":"No A/AAAA records for api.spraay.ai"}` |
+
+**Summary: 0 of 6 are usable.**
+- 2 have no DNS records at all (Imference, Spraay) — hosts never deployed
+- 2 have broken TLS (Genbase, Kodo) — wrong cert / misconfigured server
+- 2 are reachable but don't implement the x402 protocol (Freepik returns 401, Soundside returns 404)
+
+**Secondary issue: the SDK error masks the real cause.** The facilitator's `/v1/proxy/check` endpoint does return a structured `reason` and `detail`, but the SDK's `x402_fetch` wraps this to just `Facilitator error: blocked_destination` — a developer can't tell whether the URL has DNS issues, TLS issues, returns the wrong status, or is genuinely on a blocklist. The unauth probe is the only path to the real cause.
+
+**Repro:**
+```bash
+for url in \
+  "https://api.freepik.com/v1/x402/generate" \
+  "https://api.genbase.ai/v1/video" \
+  "https://api.imference.com/v1/generate" \
+  "https://api.kodo.ai/v1/create" \
+  "https://api.soundside.ai/v1/generate" \
+  "https://api.spraay.ai/v1/run"; do
+  curl -s "https://credit-api.floelabs.xyz/v1/proxy/check?url=$url"
+done
+# All six fail in one of three ways shown above.
+```
+
+**Why this is Critical severity:** A developer following the documented quickstart, on a brand-new agent, picks any "Floe compatible" endpoint from the official directory, and **cannot complete a paid x402 call** — every advertised option fails. The quickstart appears broken at the demo stage, with no obvious path forward.
+
+**Suggested fixes:**
+1. **Audit the directory.** Run `/v1/proxy/check` against every advertised endpoint as part of CI; remove or flag-as-broken anything that doesn't pass. Today's quickstart audience trusts the "Floe compatible: Yes" badge.
+2. **Surface the underlying cause in `x402_fetch`.** Today's error is `blocked_destination` — opaque. The facilitator already has the detail (DNS, TLS, status code), it just isn't passed through to the SDK caller. Example improvement:
+   ```
+   x402_fetch failed: destination https://api.spraay.ai/v1/run
+   Reason: dns_failure — No A/AAAA records for api.spraay.ai
+   See https://floe-labs.gitbook.io/docs/developers/x402-directory for working endpoints,
+   or use /v1/proxy/check to debug any URL.
+   ```
+3. **Link `/v1/proxy/check` from the docs.** This endpoint is genuinely useful for debugging and isn't surfaced anywhere obvious in the quickstart flow.
+
+**Environment:** `floe-agent@0.3.0`, agent `0xe5dc7bb3…` created 2026-05-14, 2026-05-14
+
+

@@ -26,13 +26,17 @@ const metrics = new Metrics();
 // "spend a lot". Plenty for one x402 call.
 const SPEND_LIMIT_RAW = "1000000";
 
-// One x402-paid call. Defaults to our local stub (`x402-image-stub`) —
-// swap to any Floe-verified endpoint via env to demo against a real
-// service. Examples from Floe's directory:
-//   - Firecrawl scrape:  https://api.firecrawl.dev/v1/x402/scrape
-//   - Soundside image:   https://api.soundside.ai/v1/generate
-const FETCH_URL =
-  (process.env.X402_IMAGE_STUB_URL ?? "http://localhost:8787") + "/image";
+// One x402-paid call.
+//
+// Floe's facilitator enforces a destination allowlist — random URLs
+// (incl. localhost) get rejected with `blocked_destination`. Default
+// to a Floe-verified endpoint. Other cheap options from the directory:
+//   - Soundside image:  https://api.soundside.ai/v1/generate   $0.02
+//   - Freepik image:    https://api.freepik.com/v1/x402/generate $0.02
+//   - Imference image:  https://api.imference.com/v1/generate   $0.05
+const FETCH_URL = process.env.X402_FETCH_URL ?? "https://api.spraay.ai/v1/run";
+const FETCH_BODY =
+  process.env.X402_FETCH_BODY ?? JSON.stringify({ prompt: "hello, floe credit line" });
 
 async function run() {
   logger.info("Starting Circuit 1 (credit-line quickstart)");
@@ -73,7 +77,7 @@ async function run() {
     url: FETCH_URL,
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt: "hello, floe credit line" }),
+    body: FETCH_BODY,
   });
   logger.info("Fetched:", fetched);
   metrics.recordEvent("x402_fetch", fetched);
