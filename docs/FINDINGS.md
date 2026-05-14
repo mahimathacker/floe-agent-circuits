@@ -474,21 +474,34 @@ The SDK error makes it worse — `x402_fetch` returns just `Facilitator error: b
 **Environment:** `floe-agent@0.3.0`, 2026-05-14
 
 
-## Finding #14: Floe's facilitator can't parse the standard `@x402/hono` 402 response
+## Finding #14: Floe's facilitator can't parse any standard x402 402-response format; expected wire format is undocumented
 
-**Severity:** Critical. Means the official x402-foundation server reference libraries are incompatible with Floe.
+**Severity:** Critical. The official x402-foundation server reference libraries are incompatible with Floe, and we can't even reverse-engineer the format without internal docs.
 
-Our stub server uses `@x402/hono@2.11.0` (Coinbase / x402-foundation's reference library). Its 402 response follows the x402 v2 spec — payment requirements in a base64-encoded `payment-required` HTTP header, empty body. Floe's facilitator rejects this with:
+**Method:** Stood up a custom x402 server (this repo's `x402-image-stub/`), exposed it via `ngrok`, logged every incoming request, and tried four reasonable 402-response formats against Floe's `/v1/proxy/fetch`. Confirmed via server logs that Floe reaches the server every time and returns a parse error.
 
-```
-Facilitator error: Failed to parse PAYMENT-REQUIRED header
-```
+| Attempt | Format of 402 response | Floe's reply to the agent |
+|---|---|---|
+| 1 | `@x402/hono` default — base64 JSON in `payment-required` header | `Failed to parse PAYMENT-REQUIRED header` |
+| 2 | No header — JSON requirements in response body only | `402 response missing PAYMENT-REQUIRED header` |
+| 3 | Raw `JSON.stringify(...)` literal in `payment-required` header | `Failed to parse PAYMENT-REQUIRED header` |
+| 4 | URL-encoded JSON in `payment-required` header | `Failed to parse PAYMENT-REQUIRED header` |
 
-Even though both Floe ("x402 v2") and `@x402/hono` ("x402 v2") claim the same protocol version, they disagree on the wire format. The exact dialect Floe expects isn't documented anywhere — error message gives no hint, no link to a server spec.
+**Conclusions:**
+- Floe absolutely requires a `payment-required` header (attempt 2 proves it).
+- None of the three obvious JSON encodings work (1, 3, 4).
+- The exact encoding/schema Floe expects isn't documented on the [x402 facilitator page](https://floe-labs.gitbook.io/docs/components/x402) or any of the developer pages I could find.
+- The error message itself doesn't say which part failed (header name? encoding? schema?) — so trial-and-error has no signal beyond "still wrong."
 
-**Fix:** (1) Document Floe's exact expected 402 format (header name, encoding, body shape). (2) Either accept the `@x402/hono` format or contribute the differences upstream so the reference libraries interoperate. (3) Improve the error message to say what specifically failed parsing.
+This means any developer trying to build a Floe-compatible x402 server faces an undocumented black-box format. The official `@x402/*` libraries (Coinbase's reference impl) don't work.
 
-**Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-14
+**Fix, in priority order:**
+1. **Document the exact 402-response wire format** Floe expects: header name (`payment-required` capitalization), encoding (base64? URL-encoded? raw? structured-fields?), schema (field names, scheme values).
+2. **Make the error message actionable** — `Failed to parse PAYMENT-REQUIRED header` should at least say *what* failed (e.g. *"Expected base64-encoded JSON conforming to schema X; got base64 decode error"* or *"Unknown scheme: exact"*).
+3. **Publish a minimal reference x402 server** in Floe's GitHub that demonstrates the correct format. Even 30 lines of Hono/Express that Floe testers verify works.
+4. **Contribute to `@x402/*` upstream** if Floe's format is the canonical one, or accept the `@x402/*` format if not.
+
+**Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-14. Server logs and the four stub variants are committed under `x402-image-stub/` for repro.
 
 
 ## Finding #15: `/v1/proxy/check` only sends GET, can't verify POST-only x402 endpoints

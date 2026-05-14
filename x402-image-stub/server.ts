@@ -1,70 +1,91 @@
-// Minimal x402-paywalled image-generation stub for circuit 2.
+// x402 image stub — EXPERIMENTAL body-based 402 format.
 //
-// Hono + @x402/hono middleware wrap one POST route with the x402
-// payment-required dance. The agent in circuit 2 calls this URL via
-// `x402_fetch`; Floe's facilitator settles the USDC payment to our
-// own CDP wallet (we pay ourselves — net cost is just gas).
+// Floe's facilitator rejects @x402/hono's standard output (payment
+// requirements in a base64-encoded `payment-required` HTTP header) with
+// `Failed to parse PAYMENT-REQUIRED header`. This version puts the
+// requirements in the response BODY as plain JSON — the older / more
+// common x402 convention — to see if Floe accepts that instead.
 //
-// For Wednesday's demo:
-//   1. `npm run x402-server`     — starts server on localhost:8787
-//   2. `ngrok http 8787`         — exposes a public URL
-//   3. Put the ngrok URL into IMAGE_URLS in circuit-2/index.ts
-//   4. `npm run circuit-2`       — agent borrows + pays + "generates"
+// All requests are logged so we can see exactly what Floe sends and
+// whether it ever returns with an X-PAYMENT header on the retry.
 
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
-import { ExactEvmScheme } from "@x402/evm/exact/server";
-import { HTTPFacilitatorClient } from "@x402/core/server";
 
 const PAY_TO = process.env.X402_PAY_TO as `0x${string}` | undefined;
 if (!PAY_TO) {
-  throw new Error(
-    "X402_PAY_TO env var missing — set it to your shared CDP wallet address (0x2cEC5e69…)",
-  );
+  throw new Error("X402_PAY_TO env var missing");
 }
 
 const PORT = Number(process.env.PORT ?? "8787");
-// Server-side facilitator: just needs to verify payments landed on-chain.
-// OpenX402's public facilitator is live on Base mainnet, no key/KYC needed.
-// The agent side separately uses Floe's facilitator to pay — two different
-// facilitators is fine as long as the underlying USDC transfer is real.
-const FACILITATOR_URL =
-  process.env.X402_FACILITATOR_URL ?? "https://facilitator.openx402.ai";
+const USDC_BASE_MAINNET = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 const app = new Hono();
 
-const facilitator = new HTTPFacilitatorClient({ url: FACILITATOR_URL });
-const resourceServer = new x402ResourceServer(facilitator).register(
-  "eip155:8453", // Base mainnet
-  new ExactEvmScheme(),
-);
-
-app.use(
-  paymentMiddleware(
-    {
-      "POST /image": {
-        accepts: {
-          scheme: "exact",
-          price: "$0.02",
-          network: "eip155:8453",
-          payTo: PAY_TO,
-        },
-        description: "Generate an image (paid via x402, $0.02 USDC)",
-      },
-    },
-    resourceServer,
-  ),
-);
+// Log every incoming request — we want to see Floe's request shape.
+app.use("*", async (c, next) => {
+  const headers: Record<string, string> = {};
+  c.req.raw.headers.forEach((v, k) => {
+    headers[k] = v;
+  });
+  console.log(`\n──── INCOMING ${c.req.method} ${c.req.path} ────`);
+  console.log("Headers:", JSON.stringify(headers, null, 2));
+  const bodyText = await c.req.text().catch(() => "");
+  if (bodyText) console.log("Body:", bodyText);
+  console.log("─────────────────────────────────────");
+  await next();
+});
 
 app.get("/health", (c) => c.text("ok"));
 
 app.post("/image", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as { prompt?: string };
-  const prompt = body.prompt ?? "unspecified";
+  // Check for X-PAYMENT header (sent by Floe on the retry after signing).
+  // We accept any non-empty value as "valid" for the experiment — the
+  // goal is to verify Floe can parse our 402, sign, and return.
+  const paymentHeader =
+    c.req.header("x-payment") ?? c.req.header("X-PAYMENT") ?? "";
 
-  // Deterministic placeholder so the demo is reproducible.
-  // A production server would call an actual image model here.
+  if (!paymentHeader) {
+    // Try variant 2: raw JSON in `payment-required` header (no base64).
+    const requirements = {
+      x402Version: 2,
+      error: "Payment required",
+      accepts: [
+        {
+          scheme: "exact",
+          network: "eip155:8453",
+          amount: "20000",
+          asset: USDC_BASE_MAINNET,
+          payTo: PAY_TO,
+          maxTimeoutSeconds: 300,
+          extra: { name: "USD Coin", version: "2" },
+        },
+      ],
+    };
+    console.log("→ No X-PAYMENT yet — returning 402 with URL-ENCODED JSON header");
+    return new Response(JSON.stringify(requirements), {
+      status: 402,
+      headers: {
+        "content-type": "application/json",
+        "payment-required": encodeURIComponent(JSON.stringify(requirements)),
+      },
+    });
+  }
+
+  // X-PAYMENT header present — Floe signed and is retrying.
+  // In a production server we'd validate the EIP-3009 signature here.
+  // For the experiment we just log and return success.
+  console.log(
+    "→ X-PAYMENT received (first 80 chars):",
+    paymentHeader.slice(0, 80),
+  );
+  let body: { prompt?: string } = {};
+  try {
+    body = (await c.req.json()) ?? {};
+  } catch {
+    /* ignore */
+  }
+  const prompt = body.prompt ?? "unspecified";
   return c.json({
     prompt,
     imageUrl: `https://picsum.photos/seed/${encodeURIComponent(prompt)}/512/512`,
@@ -73,6 +94,8 @@ app.post("/image", async (c) => {
 });
 
 serve({ fetch: app.fetch, port: PORT });
-console.log(`x402-image-stub listening on http://localhost:${PORT}`);
+console.log(
+  `x402-image-stub (experimental body-based 402) listening on http://localhost:${PORT}`,
+);
 console.log(`POST /image → $0.02 USDC payable to ${PAY_TO} (Base mainnet)`);
-console.log(`Facilitator: ${FACILITATOR_URL}`);
+console.log("Returning 402 with requirements in BODY (no payment-required header)");
