@@ -455,61 +455,78 @@ This is fine as architecture (Floe layers credit on top of vanilla x402, doesn't
 **Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-12
 
 
-## Finding #13: Floe's "x402 directory" advertises endpoints that are dead or non-x402; `blocked_destination` error masks the real cause
+## Finding #13: Floe's "x402 directory" advertises endpoints that don't work
 
-**Severity:** Critical. The headline x402 demo flow can't be completed using Floe's own published directory of "compatible" endpoints.
+**Severity:** Critical. The headline x402 flow can't be completed with any endpoint Floe themselves list as compatible.
 
-**What happens:** `x402_fetch` returns:
+Probed 9 endpoints from across the directory (media gen, web search, scraping). **0 of 9** actually return HTTP 402:
+- **DNS doesn't resolve:** `api.spraay.ai`, `api.imference.com`
+- **TLS broken:** `api.genbase.ai`, `api.kodo.ai`
+- **Wrong path / 404 on POST:** `api.firecrawl.dev/v1/x402/scrape`, `api.exa.ai/x402/search`, `api.soundside.ai/v1/generate`
+- **Reachable but not x402, returns own 401:** `api.freepik.com/v1/x402/generate`, `api.firecrawl.dev/v1/x402/search`
+
+A developer trusting the "Floe compatible: Yes" badge hits a wall on their first paid call.
+
+The SDK error makes it worse — `x402_fetch` returns just `Facilitator error: blocked_destination` even though `/v1/proxy/check` has the underlying `reason` (dns_failure, tls_error, status_code). The detail isn't piped through.
+
+**Fix:** (1) Audit the directory in CI against `/v1/proxy/check`; flag broken entries. (2) Pipe the real reason through to `x402_fetch` errors. (3) Link `/v1/proxy/check` from the docs as a debugging tool.
+
+**Environment:** `floe-agent@0.3.0`, 2026-05-14
+
+
+## Finding #14: Floe's facilitator can't parse the standard `@x402/hono` 402 response
+
+**Severity:** Critical. Means the official x402-foundation server reference libraries are incompatible with Floe.
+
+Our stub server uses `@x402/hono@2.11.0` (Coinbase / x402-foundation's reference library). Its 402 response follows the x402 v2 spec — payment requirements in a base64-encoded `payment-required` HTTP header, empty body. Floe's facilitator rejects this with:
+
 ```
-Facilitator error: blocked_destination
+Facilitator error: Failed to parse PAYMENT-REQUIRED header
 ```
-…for endpoints Floe themselves advertise as compatible. Probing each via the unauthenticated `GET /v1/proxy/check` reveals the underlying problem.
 
-**Evidence — all 6 endpoints in the [media-generation directory](https://floe-labs.gitbook.io/docs/developers/x402-directory/media-generation), each advertised as *"Floe compatible: Yes"*:**
+Even though both Floe ("x402 v2") and `@x402/hono` ("x402 v2") claim the same protocol version, they disagree on the wire format. The exact dialect Floe expects isn't documented anywhere — error message gives no hint, no link to a server spec.
 
-| Endpoint | `/v1/proxy/check` result |
-|---|---|
-| `https://api.freepik.com/v1/x402/generate` | `{"x402":false,"status":401,"message":"This URL does not require x402 payment"}` |
-| `https://api.genbase.ai/v1/video` | SSL handshake failure (`alert number 40`) |
-| `https://api.imference.com/v1/generate` | `{"error":"blocked_destination","reason":"dns_failure","detail":"No A/AAAA records for api.imference.com"}` |
-| `https://api.kodo.ai/v1/create` | TLS unrecognized name (`alert number 112`) |
-| `https://api.soundside.ai/v1/generate` | `{"x402":false,"status":404,"message":"This URL does not require x402 payment"}` |
-| `https://api.spraay.ai/v1/run` | `{"error":"blocked_destination","reason":"dns_failure","detail":"No A/AAAA records for api.spraay.ai"}` |
+**Fix:** (1) Document Floe's exact expected 402 format (header name, encoding, body shape). (2) Either accept the `@x402/hono` format or contribute the differences upstream so the reference libraries interoperate. (3) Improve the error message to say what specifically failed parsing.
 
-**Summary: 0 of 6 are usable.**
-- 2 have no DNS records at all (Imference, Spraay) — hosts never deployed
-- 2 have broken TLS (Genbase, Kodo) — wrong cert / misconfigured server
-- 2 are reachable but don't implement the x402 protocol (Freepik returns 401, Soundside returns 404)
+**Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-14
 
-**Secondary issue: the SDK error masks the real cause.** The facilitator's `/v1/proxy/check` endpoint does return a structured `reason` and `detail`, but the SDK's `x402_fetch` wraps this to just `Facilitator error: blocked_destination` — a developer can't tell whether the URL has DNS issues, TLS issues, returns the wrong status, or is genuinely on a blocklist. The unauth probe is the only path to the real cause.
 
-**Repro:**
+## Finding #15: `/v1/proxy/check` only sends GET, can't verify POST-only x402 endpoints
+
+**Severity:** Medium. The documented debugging endpoint can't validate the majority of real x402 APIs.
+
+Almost every paid x402 endpoint in the wild requires POST (image gen, search, scraping, data submission). Floe's `/v1/proxy/check` probes the URL with GET — POST-only endpoints return 404 or 405, and the probe wrongly reports `"x402": false`.
+
+Repro:
 ```bash
-for url in \
-  "https://api.freepik.com/v1/x402/generate" \
-  "https://api.genbase.ai/v1/video" \
-  "https://api.imference.com/v1/generate" \
-  "https://api.kodo.ai/v1/create" \
-  "https://api.soundside.ai/v1/generate" \
-  "https://api.spraay.ai/v1/run"; do
-  curl -s "https://credit-api.floelabs.xyz/v1/proxy/check?url=$url"
-done
-# All six fail in one of three ways shown above.
+# Our own stub returns proper 402 on POST, 404 on GET — yet:
+curl "https://credit-api.floelabs.xyz/v1/proxy/check?url=https://<ngrok-url>/image"
+# → {"x402":false,"status":404,"message":"This URL does not require x402 payment"}
 ```
 
-**Why this is Critical severity:** A developer following the documented quickstart, on a brand-new agent, picks any "Floe compatible" endpoint from the official directory, and **cannot complete a paid x402 call** — every advertised option fails. The quickstart appears broken at the demo stage, with no obvious path forward.
+**Fix:** Accept a `method` query param on `/v1/proxy/check` (default GET), or run an OPTIONS probe to discover allowed methods first.
 
-**Suggested fixes:**
-1. **Audit the directory.** Run `/v1/proxy/check` against every advertised endpoint as part of CI; remove or flag-as-broken anything that doesn't pass. Today's quickstart audience trusts the "Floe compatible: Yes" badge.
-2. **Surface the underlying cause in `x402_fetch`.** Today's error is `blocked_destination` — opaque. The facilitator already has the detail (DNS, TLS, status code), it just isn't passed through to the SDK caller. Example improvement:
-   ```
-   x402_fetch failed: destination https://api.spraay.ai/v1/run
-   Reason: dns_failure — No A/AAAA records for api.spraay.ai
-   See https://floe-labs.gitbook.io/docs/developers/x402-directory for working endpoints,
-   or use /v1/proxy/check to debug any URL.
-   ```
-3. **Link `/v1/proxy/check` from the docs.** This endpoint is genuinely useful for debugging and isn't surfaced anywhere obvious in the quickstart flow.
+**Environment:** Floe Credit API, 2026-05-14
 
-**Environment:** `floe-agent@0.3.0`, agent `0xe5dc7bb3…` created 2026-05-14, 2026-05-14
+
+## Finding #16: Docs use `FLOE_API_KEY` for examples that actually require the agent runtime key
+
+**Severity:** Low (naming/docs). High confusion factor.
+
+Two distinct keys exist with different scopes:
+- `floe_live_*` — developer / dashboard-level key, used for managing agents
+- `floe_*` — per-agent runtime key, used for x402 calls
+
+The docs' curl examples (e.g. on the Media Generation directory page) show:
+```
+curl -X POST https://credit-api.floelabs.xyz/v1/proxy/fetch \
+  -H "Authorization: Bearer $FLOE_API_KEY" ...
+```
+
+But `floe_live_*` fails on `/v1/proxy/fetch` with `Missing or invalid Authorization header`. Only `floe_*` (the runtime key) works. The variable name `$FLOE_API_KEY` suggests "the API key" — most developers will plug in the obvious one from the dashboard's API Keys page and hit confusion.
+
+**Fix:** Rename the variable in docs to `$FLOE_AGENT_API_KEY` (or `$FLOE_RUNTIME_KEY`), and add a one-line note distinguishing the two key types on the API Keys docs page.
+
+**Environment:** Floe docs (`developers/x402-directory/*` and similar), 2026-05-14
 
 
