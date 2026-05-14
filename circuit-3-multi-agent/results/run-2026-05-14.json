@@ -1,0 +1,77 @@
+{
+  "totalDuration": 4785,
+  "events": [
+    {
+      "timestamp": 1778762687283,
+      "event": "credit_before",
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 100.00 USDC\n**Utilization**: 0.00%\n**Session Cap**: 0.10 USDC (remaining 0.10 USDC)"
+    },
+    {
+      "timestamp": 1778762688480,
+      "event": "spend_limit_set",
+      "data": "## Spend Limit Set\n\n**Cap**: 0.10 USDC\n**Session Started**: 2026-05-14T12:44:48.000Z"
+    },
+    {
+      "timestamp": 1778762689031,
+      "event": "worker_results",
+      "data": [
+        {
+          "worker": "worker-A-product",
+          "specialization": "product",
+          "ok": true,
+          "output": {
+            "company": "Coinbase",
+            "products": [
+              "Coinbase Exchange — primary spot/derivatives venue",
+              "Coinbase Wallet — self-custody mobile/extension wallet",
+              "Coinbase Earn — staking + yield products"
+            ],
+            "source": "simulated scrape of company website"
+          },
+          "simulatedCostRaw": "30000",
+          "durationMs": 470
+        },
+        {
+          "worker": "worker-B-news",
+          "specialization": "news",
+          "ok": true,
+          "output": {
+            "company": "Coinbase",
+            "headlines": [
+              "Coinbase reports Q1 earnings beat",
+              "Coinbase announces new institutional product line",
+              "Coinbase expands to two additional jurisdictions"
+            ],
+            "source": "simulated news search"
+          },
+          "simulatedCostRaw": "50000",
+          "durationMs": 550
+        },
+        {
+          "worker": "worker-C-price",
+          "specialization": "price",
+          "ok": true,
+          "output": {
+            "company": "Coinbase",
+            "feeds": {
+              "BTC": "$67,400",
+              "ETH": "$2,500",
+              "relevantTokens": [
+                "BTC",
+                "ETH"
+              ]
+            },
+            "source": "simulated price oracle"
+          },
+          "simulatedCostRaw": "1000",
+          "durationMs": 549
+        }
+      ]
+    },
+    {
+      "timestamp": 1778762689356,
+      "event": "credit_after",
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 100.00 USDC\n**Utilization**: 0.00%\n**Session Cap**: 0.10 USDC (remaining 0.10 USDC)"
+    }
+  ]
+}
