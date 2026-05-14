@@ -103,7 +103,7 @@ Simulated spend: 81000 raw USDC | session cap: 100000 | within budget: true
 3. **Per-worker cost ladders cleanly into a budget.** A coordinating planner can pre-compute total spend ($0.081) before workers start, compare against the cap ($0.10), and decide whether to launch.
 4. **`get_credit_remaining` is the natural pre-flight gate.** Reading credit state at the start of a session tells the planner what budget it actually has — useful for "should I even attempt this research" decisions.
 
-## What's missing (Wednesday's funded run would fix)
+## What's missing
 
 - Real `x402_fetch` per worker → real credit utilization → real per-worker spend tracked by Floe (not simulated by us). Blocked on [Finding #14](../docs/FINDINGS.md).
 - Multiple actual Floe Agents (one per worker) → per-worker spend caps enforced server-side by Floe. Today we have one Agent with one session cap covering all workers.
