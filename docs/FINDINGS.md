@@ -503,6 +503,22 @@ This means any developer trying to build a Floe-compatible x402 server faces an 
 
 **Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-14. Server logs and the four stub variants are committed under `x402-image-stub/` for repro.
 
+**Update 2026-05-14 (post Alex's v2 fix on credit-api):** The error message is now actionable — suggested fix #2 above is shipped. New response:
+
+```json
+{
+  "error": "Failed to parse PAYMENT-REQUIRED header",
+  "code": "invalid_base64",
+  "detail": "PAYMENT-REQUIRED header is not valid base64"
+}
+```
+
+With this we can confirm the exact mismatch: Floe's facilitator decodes the `PAYMENT-REQUIRED` header as base64. Our default `@x402/hono` output was URL-encoded JSON. Per Coinbase's [x402 FAQ](https://docs.cdp.coinbase.com/x402/support/faq) the canonical spec is:
+
+> *"Parse the PAYMENT-REQUIRED header (base64-encoded payment requirements)."*
+
+So **Floe is spec-correct** and `@x402/hono` is non-compliant for our use. Resolution path: replaced `@x402/hono`'s middleware in `x402-image-stub/server.ts` with a hand-rolled response that base64-encodes the header per the Coinbase spec. The remaining open work is a separate, upstream finding against the `@x402/*` reference libraries (out of scope here).
+
 
 ## Finding #15: `/v1/proxy/check` only sends GET, can't verify POST-only x402 endpoints
 
@@ -541,5 +557,27 @@ But `floe_live_*` fails on `/v1/proxy/fetch` with `Missing or invalid Authorizat
 **Fix:** Rename the variable in docs to `$FLOE_AGENT_API_KEY` (or `$FLOE_RUNTIME_KEY`), and add a one-line note distinguishing the two key types on the API Keys docs page.
 
 **Environment:** Floe docs (`developers/x402-directory/*` and similar), 2026-05-14
+
+
+## Finding #17: Onramp "100+ countries supported" claim doesn't match Coinbase's actual coverage
+
+**Severity:** Medium. Locks developers out of the documented funding path silently, with no soft-landing.
+
+Floe's [Fiat on/off-ramp docs](https://floe-labs.gitbook.io/docs/components/onramp) state:
+
+> *"Coverage: Visa, Mastercard, Apple Pay, Google Pay — ACH and SEPA bank transfers — 100+ countries supported"*
+
+In practice clicking **"Buy USDC & deposit"** in the dashboard hands the user off to Coinbase, which responds:
+
+> *"Buys Not Supported — Coinbase does not currently support buys in your country."*
+
+The Floe dashboard surfaces Coinbase's rejection screen unchanged — no fallback path, no link to alternative funding instructions, no mention that "100+ countries" is actually constrained by the underlying provider's policies.
+
+**Fix:**
+1. Update the docs to clarify country coverage is limited by Coinbase's policies, and link to Coinbase's current supported-country list.
+2. When the dashboard detects the user is in an unsupported country, surface a graceful fallback panel: "Direct USDC transfer" with the agent address + supported exchanges that can withdraw to Base.
+3. Consider a second onramp provider as fallback (Stripe Onramp, Transak, MoonPay all support more countries than Coinbase Commerce).
+
+**Environment:** Floe dashboard, 2026-05-14
 
 

@@ -1,10 +1,11 @@
-// x402 image stub — EXPERIMENTAL body-based 402 format.
+// x402 image stub — hand-rolled 402 response with base64-encoded
+// `PAYMENT-REQUIRED` header, matching the canonical x402 spec per
+// Coinbase's docs:
+//   https://docs.cdp.coinbase.com/x402/support/faq
+//   "Parse the PAYMENT-REQUIRED header (base64-encoded payment requirements)."
 //
-// Floe's facilitator rejects @x402/hono's standard output (payment
-// requirements in a base64-encoded `payment-required` HTTP header) with
-// `Failed to parse PAYMENT-REQUIRED header`. This version puts the
-// requirements in the response BODY as plain JSON — the older / more
-// common x402 convention — to see if Floe accepts that instead.
+// We bypass @x402/hono's middleware because its current output is
+// URL-encoded (non-spec), which Floe's facilitator correctly rejects.
 //
 // All requests are logged so we can see exactly what Floe sends and
 // whether it ever returns with an X-PAYMENT header on the retry.
@@ -46,7 +47,6 @@ app.post("/image", async (c) => {
     c.req.header("x-payment") ?? c.req.header("X-PAYMENT") ?? "";
 
   if (!paymentHeader) {
-    // Try variant 2: raw JSON in `payment-required` header (no base64).
     const requirements = {
       x402Version: 2,
       error: "Payment required",
@@ -62,12 +62,16 @@ app.post("/image", async (c) => {
         },
       ],
     };
-    console.log("→ No X-PAYMENT yet — returning 402 with URL-ENCODED JSON header");
-    return new Response(JSON.stringify(requirements), {
+    const requirementsJson = JSON.stringify(requirements);
+    const requirementsB64 = Buffer.from(requirementsJson, "utf8").toString("base64");
+    console.log(
+      "→ No X-PAYMENT yet — returning 402 with BASE64-encoded PAYMENT-REQUIRED header",
+    );
+    return new Response(requirementsJson, {
       status: 402,
       headers: {
         "content-type": "application/json",
-        "payment-required": encodeURIComponent(JSON.stringify(requirements)),
+        "PAYMENT-REQUIRED": requirementsB64,
       },
     });
   }
@@ -94,8 +98,6 @@ app.post("/image", async (c) => {
 });
 
 serve({ fetch: app.fetch, port: PORT });
-console.log(
-  `x402-image-stub (experimental body-based 402) listening on http://localhost:${PORT}`,
-);
+console.log(`x402-image-stub listening on http://localhost:${PORT}`);
 console.log(`POST /image → $0.02 USDC payable to ${PAY_TO} (Base mainnet)`);
-console.log("Returning 402 with requirements in BODY (no payment-required header)");
+console.log("PAYMENT-REQUIRED header is base64-encoded JSON (per Coinbase x402 spec)");
