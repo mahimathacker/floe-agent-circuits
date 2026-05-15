@@ -28,19 +28,19 @@ export class Logger {
   }
 
   info(message: string, data?: any) {
-    console.log(`[${this.circuit}] ℹ️  ${message}`, data || "");
+    console.log(`[${this.circuit}]  ${message}`, data || "");
   }
 
   success(message: string, data?: any) {
-    console.log(`[${this.circuit}] ✅ ${message}`, data || "");
+    console.log(`[${this.circuit}] ${message}`, data || "");
   }
 
   error(message: string, error?: any) {
-    console.error(`[${this.circuit}] ❌ ${message}`, error || "");
+    console.error(`[${this.circuit}]  ${message}`, error || "");
   }
 
   warn(message: string, data?: any) {
-    console.warn(`[${this.circuit}] ⚠️  ${message}`, data || "");
+    console.warn(`[${this.circuit}]  ${message}`, data || "");
   }
 }
 

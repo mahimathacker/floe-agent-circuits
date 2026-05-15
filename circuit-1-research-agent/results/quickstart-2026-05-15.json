@@ -1,0 +1,25 @@
+{
+  "totalDuration": 7419,
+  "events": [
+    {
+      "timestamp": 1778865143482,
+      "event": "credit_before",
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 100.00 USDC\n**Utilization**: 0.00%\n**Session Cap**: 1.00 USDC (remaining 1.00 USDC)"
+    },
+    {
+      "timestamp": 1778865144998,
+      "event": "spend_limit_set",
+      "data": "## Spend Limit Set\n\n**Cap**: 1.00 USDC\n**Session Started**: 2026-05-15T17:12:24.000Z"
+    },
+    {
+      "timestamp": 1778865146214,
+      "event": "x402_fetch",
+      "data": "Facilitator error: Failed to parse PAYMENT-REQUIRED header"
+    },
+    {
+      "timestamp": 1778865146570,
+      "event": "credit_after",
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 100.00 USDC\n**Utilization**: 0.00%\n**Session Cap**: 1.00 USDC (remaining 1.00 USDC)"
+    }
+  ]
+}
