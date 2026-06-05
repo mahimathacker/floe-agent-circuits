@@ -26,7 +26,9 @@ export interface PlannerReport {
   company: string;
   workersDispatched: number;
   workersCompleted: number;
-  totalSimulatedSpendRaw: string;
+  totalSpendRaw: string;
+  realSpendRaw: string;
+  simulatedSpendRaw: string;
   creditBefore: unknown;
   creditAfter: unknown;
   spendLimitRaw: string;
@@ -60,7 +62,7 @@ export async function runPlanner(opts: PlannerOptions): Promise<PlannerReport> {
   // 3. Dispatch workers in parallel
   logger.info("Dispatching workers in parallel…");
   const results = await Promise.all(
-    workers.map((w) => runWorker(w, company)),
+    workers.map((w) => runWorker(agentkit, w, company)),
   );
   metrics?.recordEvent("worker_results", results);
 
@@ -69,19 +71,24 @@ export async function runPlanner(opts: PlannerOptions): Promise<PlannerReport> {
   logger.info("Credit after:", creditAfter);
   metrics?.recordEvent("credit_after", creditAfter);
 
-  // 5. Aggregate budget
-  const totalSimulatedSpendRaw = sumRaw(
-    results.filter((r) => r.ok).map((r) => r.simulatedCostRaw),
+  // 5. Aggregate budget — split real x402 spend from simulated counterfactual
+  const ok = results.filter((r) => r.ok);
+  const realSpendRaw = sumRaw(ok.filter((r) => r.realCall).map((r) => r.costRaw));
+  const simulatedSpendRaw = sumRaw(
+    ok.filter((r) => !r.realCall).map((r) => r.costRaw),
   );
+  const totalSpendRaw = sumRaw([realSpendRaw, simulatedSpendRaw]);
   const withinBudget =
-    BigInt(totalSimulatedSpendRaw) <= BigInt(sessionSpendLimitRaw);
+    BigInt(totalSpendRaw) <= BigInt(sessionSpendLimitRaw);
 
   const durationMs = Date.now() - started;
   return {
     company,
     workersDispatched: workers.length,
-    workersCompleted: results.filter((r) => r.ok).length,
-    totalSimulatedSpendRaw,
+    workersCompleted: ok.length,
+    totalSpendRaw,
+    realSpendRaw,
+    simulatedSpendRaw,
     creditBefore,
     creditAfter,
     spendLimitRaw: sessionSpendLimitRaw,
@@ -99,12 +106,12 @@ export function renderReport(report: PlannerReport): string {
     `Workers dispatched: ${report.workersDispatched} | completed: ${report.workersCompleted} | duration: ${report.durationMs}ms`,
   );
   lines.push(
-    `Simulated spend: ${report.totalSimulatedSpendRaw} raw USDC | session cap: ${report.spendLimitRaw} | within budget: ${report.withinBudget}`,
+    `Real x402 spend: ${report.realSpendRaw} raw USDC | simulated counterfactual: ${report.simulatedSpendRaw} raw USDC | session cap: ${report.spendLimitRaw} | within budget: ${report.withinBudget}`,
   );
   lines.push("");
   for (const r of report.results) {
     lines.push(
-      `## ${r.worker} (${r.specialization}) — ${r.ok ? "ok" : "failed"} in ${r.durationMs}ms, would-cost ${r.simulatedCostRaw} raw USDC`,
+      `## ${r.worker} (${r.specialization}) — ${r.ok ? "ok" : "failed"} in ${r.durationMs}ms, cost ${r.costRaw} raw USDC (${r.realCall ? "real x402" : "simulated"})`,
     );
     lines.push("```json");
     lines.push(JSON.stringify(r.output, null, 2));

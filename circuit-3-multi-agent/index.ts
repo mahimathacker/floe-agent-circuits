@@ -66,9 +66,8 @@ async function run() {
     logger.info(
       `Workers:            ${report.workersCompleted}/${report.workersDispatched} completed in ${report.durationMs}ms`,
     );
-    logger.info(
-      `Simulated spend:    ${report.totalSimulatedSpendRaw} raw USDC`,
-    );
+    logger.info(`Real x402 spend:    ${report.realSpendRaw} raw USDC`);
+    logger.info(`Simulated (would):  ${report.simulatedSpendRaw} raw USDC`);
     logger.info(`Session cap:        ${report.spendLimitRaw} raw USDC`);
     logger.info(`Within budget:      ${report.withinBudget}`);
 
