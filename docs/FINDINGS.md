@@ -581,3 +581,25 @@ The Floe dashboard surfaces Coinbase's rejection screen unchanged — no fallbac
 **Environment:** Floe dashboard, 2026-05-14
 
 
+## Finding #18: Agents disappear from dashboard / API before their expiry
+
+**Severity:** High. Blocks any multi-day developer workflow. Reproduced twice in 5 days.
+
+Created an agent with 30-day expiry on 2026-05-11 (Borrow Limit 100, Max Rate 15%). On 2026-05-14, awareness probe returned `Error: Unauthorized` on every action and the agent was no longer visible in the dashboard, even though on-chain expiry should have been 2026-06-10. Recreated the agent the same day. **Today (2026-05-16) the second agent is also gone** — created 2026-05-14, expected live until 2026-06-13.
+
+Both times:
+- Connected with the same dashboard wallet (`0x4b2E…677c`)
+- Dashboard shows "No agents yet"
+- API key returns `Error: Unauthorized` on every x402 action
+- On-chain expiry timestamps are still in the future
+
+Suggests a server-side state-loss bug or a sweeper running on something other than the on-chain expiry. A developer can't build anything serious if the agent doesn't survive across days.
+
+**Fix:**
+1. Investigate whether agent records are being purged before the on-chain operator permission expires.
+2. If there's an intentional dashboard-side TTL shorter than the on-chain expiry, document it loudly.
+3. Either way, the API key returning `Unauthorized` (without saying *why*) is the same as Finding #11 — should surface "agent record not found, please recreate at dev-dashboard.floelabs.xyz/agents."
+
+**Environment:** Dashboard wallet `0x4b2E…677c`, both agents created via `dev-dashboard.floelabs.xyz/agents` UI with 30-day expiry, observed 2026-05-14 and 2026-05-16.
+
+

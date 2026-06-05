@@ -1,0 +1,25 @@
+{
+  "totalDuration": 13739,
+  "events": [
+    {
+      "timestamp": 1780639922907,
+      "event": "credit_before",
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 100.00 USDC\n**Utilization**: 0.00%"
+    },
+    {
+      "timestamp": 1780639925239,
+      "event": "spend_limit_set",
+      "data": "## Spend Limit Set\n\n**Cap**: 1.00 USDC\n**Session Started**: 2026-06-05T06:12:04.000Z"
+    },
+    {
+      "timestamp": 1780639932585,
+      "event": "x402_fetch",
+      "data": "Facilitator error: auto_borrow_in_progress"
+    },
+    {
+      "timestamp": 1780639933922,
+      "event": "credit_after",
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 100.00 USDC\n**Utilization**: 0.00%\n**Session Cap**: 1.00 USDC (remaining 1.00 USDC)"
+    }
+  ]
+}
