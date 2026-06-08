@@ -40,11 +40,15 @@ app.use("*", async (c, next) => {
 app.get("/health", (c) => c.text("ok"));
 
 app.post("/image", async (c) => {
-  // Check for X-PAYMENT header (sent by Floe on the retry after signing).
-  // We accept any non-empty value as "valid" for the experiment — the
-  // goal is to verify Floe can parse our 402, sign, and return.
+  // Check for the signed-payment header that Floe sends on the retry.
+  // Per Coinbase's x402 spec the canonical name is PAYMENT-SIGNATURE.
+  // Also accept X-PAYMENT for compatibility with @x402/* reference libs.
   const paymentHeader =
-    c.req.header("x-payment") ?? c.req.header("X-PAYMENT") ?? "";
+    c.req.header("payment-signature") ??
+    c.req.header("PAYMENT-SIGNATURE") ??
+    c.req.header("x-payment") ??
+    c.req.header("X-PAYMENT") ??
+    "";
 
   if (!paymentHeader) {
     const requirements = {
@@ -76,11 +80,12 @@ app.post("/image", async (c) => {
     });
   }
 
-  // X-PAYMENT header present — Floe signed and is retrying.
-  // In a production server we'd validate the EIP-3009 signature here.
-  // For the experiment we just log and return success.
+  // Signed payment header present — Floe signed and is retrying.
+  // In a production server we'd validate the EIP-3009 signature here and
+  // call the facilitator's settle endpoint. For the demo we trust Floe
+  // and ack the settlement.
   console.log(
-    "→ X-PAYMENT received (first 80 chars):",
+    "→ PAYMENT-SIGNATURE received (first 80 chars):",
     paymentHeader.slice(0, 80),
   );
   let body: { prompt?: string } = {};
@@ -90,6 +95,23 @@ app.post("/image", async (c) => {
     /* ignore */
   }
   const prompt = body.prompt ?? "unspecified";
+
+  // Return a PAYMENT-RESPONSE header acknowledging settlement. Per the
+  // x402 spec, this is base64-encoded JSON. Real production server would
+  // include the on-chain tx hash from facilitator settle; we trust Floe
+  // here and return a minimal ack.
+  const paymentResponse = {
+    success: true,
+    network: "eip155:8453",
+    transaction: "n/a-stub-trusted-floe",
+  };
+  const paymentResponseB64 = Buffer.from(
+    JSON.stringify(paymentResponse),
+    "utf8",
+  ).toString("base64");
+  c.header("PAYMENT-RESPONSE", paymentResponseB64);
+  c.header("access-control-expose-headers", "PAYMENT-RESPONSE");
+
   return c.json({
     prompt,
     imageUrl: `https://picsum.photos/seed/${encodeURIComponent(prompt)}/512/512`,

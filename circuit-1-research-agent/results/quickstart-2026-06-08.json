@@ -1,0 +1,25 @@
+{
+  "totalDuration": 7657,
+  "events": [
+    {
+      "timestamp": 1780918738763,
+      "event": "credit_before",
+      "data": "## Credit Remaining\n\n**Available**: 0.02 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 100.00 USDC\n**Utilization**: 0.00%\n**Session Cap**: 1.00 USDC (remaining 1.00 USDC)"
+    },
+    {
+      "timestamp": 1780918740144,
+      "event": "spend_limit_set",
+      "data": "## Spend Limit Set\n\n**Cap**: 1.00 USDC\n**Session Started**: 2026-06-08T11:39:00.000Z"
+    },
+    {
+      "timestamp": 1780918742909,
+      "event": "x402_fetch",
+      "data": "## Response\n\n*Paid via x402 — tx: eyJzdWNjZXNzIjp0cnVlLCJuZXR3b3JrIjoiZWlwMTU1Ojg0NTMiLCJ0cmFuc2FjdGlvbiI6Im4vYS1zdHViLXRydXN0ZWQtZmxvZSJ9*\n\n```\n{\n  \"prompt\": \"hello, floe credit line\",\n  \"imageUrl\": \"https://picsum.photos/seed/hello%2C%20floe%20credit%20line/512/512\",\n  \"generatedAt\": \"2026-06-08T11:39:02.391Z\"\n}\n```"
+    },
+    {
+      "timestamp": 1780918743319,
+      "event": "credit_after",
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 99.98 USDC\n**Utilization**: 0.02%\n**Session Cap**: 1.00 USDC (remaining 0.98 USDC)"
+    }
+  ]
+}
