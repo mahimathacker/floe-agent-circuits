@@ -20,125 +20,22 @@
 
 3. **Breaking action-name changes in 0.3.0.** `instant_borrow` no longer exists. The action surface is now `get_markets`, `get_loan`, `post_lend_intent`, `post_borrow_intent`, `match_intents`, `request_credit`, `check_credit_status`, `repay_credit`, etc. Any code or docs that referenced the 0.2.0 names needs to be updated.
 
-## Finding #2: Developer Dashboard UI Bug - API Key Label Input Loses Focus
-**Severity:** Medium - Reduces UX quality
+## Finding #2: API Key "Label" input lost focus after every keystroke — RESOLVED
 
-**Description:**
-When creating an API key in the Developer Dashboard, the "Label (optional)" 
-input field loses focus after typing a single character.
+**Severity:** Medium. Fixed since I originally reported.
 
-**Steps to Reproduce:**
-1. Navigate to Developer Dashboard (dev-dashboard.floelabs.xyz)
-2. Click "Create API Key" or equivalent button
-3. Click into the "Label (optional)" text field
-4. Type one character (e.g., "f")
-5. Observe: cursor/focus disappears from the input field
-6. Must click back into the field to type the next character
+When creating an API key in the developer dashboard, the "Label (optional)" input lost focus after every single character I typed — I had to click back into the field for each letter. Looked like the parent component was re-rendering on every onChange. Fixed now.
 
-**Expected Behavior:**
-Input should retain focus until user explicitly moves away (Tab key, click 
-elsewhere, etc.)
-
-**Actual Behavior:**
-Focus is lost after every keystroke, requiring repeated clicks to type a 
-multi-character label.
-
-**Impact:**
-- Frustrating user experience
-- Slows down API key creation workflow
-- May cause users to skip labeling keys entirely
-
-**Likely Root Cause:**
-React component re-rendering on every onChange event, causing input to 
-lose controlled state. Common pattern:
-
-```jsx
-// Problematic code (example):
-const [label, setLabel] = useState('');
-
-// This causes re-render and focus loss:
-<input value={label} onChange={(e) => setLabel(e.target.value)} />
-```
-
-**Suggested Fix:**
-- Use useRef or uncontrolled component for the input
-- OR ensure the parent component doesn't re-render on state change
-- OR use React.memo() on the input component
-
-**Environment:**
-- Browser: Brave;
-- OS: macOS
-- Dashboard URL: dev-dashboard.floelabs.xyz
-- Date: April 30, 2026
-
-**Screenshot:**
-
-![API Key Input Bug](images/api-key-focus-bug.png)
+**Environment:** Brave, macOS, `dev-dashboard.floelabs.xyz`, originally observed April 30, 2026. Screenshot: `images/api-key-focus-bug.png`.
 
 
-## Finding #3: API Error Messages Could Be More Specific
+## Finding #3: API Error Messages Could Be More Specific -
 
 **Status:** Resolved as of 2026-05-11. The error response now includes `primaryReason`, `suggestion`, `rejectionsByCode`, and richer `closestOffers` (with `maxLtvBps`, `minDuration`, `maxDuration`, `minFillAmount`). Original finding kept below as historical record.
 
-**Issue:** NoLiquidityError doesn't indicate why matching failed
+**Original issue (kept for history):** `NoLiquidityError` didn't say *why* lenders rejected my borrow. I tried to borrow $10 USDC for 7 days and got back a generic "no matching lend intents" with a list of closest offers. To figure out the real reason (the 7-day duration was below the lenders' 21-day minimum), I had to query `/v1/credit/offers` separately and manually compare parameters against each offer's constraints. This added a lot of debugging time.
 
-**Context:**
-Attempted to borrow $10 USDC for 7 days, received:
-```json
-{
-  "error": "NoLiquidityError",
-  "message": "No matching lend intents for 10000000...",
-  "closestOffers": [...]
-}
-```
-
-**Root Cause Analysis:**
-After querying `/v1/credit/offers`, discovered available liquidity exists 
-($990 USDC available), but the request failed because:
-- Requested duration: 7 days (604800 seconds)
-- Required minimum: 21 days (1814400 seconds)
-
-**The Issue:**
-The error message says "no matching lend intents" but doesn't specify 
-WHY they don't match. The developer must:
-1. Query /v1/credit/offers separately
-2. Manually compare their parameters against offer constraints
-3. Identify which constraint caused the mismatch
-
-**Impact:**
-- Increases debugging time
-- Could cause developers to think there's no liquidity at all
-- Requires extra API call to diagnose
-
-**Recommendation:**
-Enhance error response to include constraint violations:
-
-```json
-{
-  "error": "NoLiquidityError",
-  "message": "No matching lend intents",
-  "violations": [
-    {
-      "constraint": "minDuration",
-      "requested": "604800",
-      "required": "1814400",
-      "message": "Duration too short. Available lenders require minimum 21 days."
-    }
-  ],
-  "closestOffers": [...]
-}
-```
-
-**Workaround:**
-Always query `/v1/credit/offers` first to check available terms before 
-calling `/v1/credit/instant-borrow`.
-
-**Severity:** Medium - Impacts developer experience but has workaround
-
-**Environment:**
-- Network: Base Sepolia testnet
-- MarketId: 0xfe92656527bae8e6d37a9e0bb785383fbb33f1f0c7e29fdd733f5af7390c2930
-- API: credit-api.floelabs.xyz
+**Now (2026-05-11):** The error response includes `primaryReason`, `suggestion`, `rejectionsByCode`, and richer `closestOffers` fields — exactly the kind of structured "why did it fail" data I was hoping for. Much faster to debug now.
 
 
 ## Finding #4: I could not figure out what `minLtvBps` does, and it kept blocking my borrow
@@ -194,7 +91,7 @@ calling `/v1/credit/instant-borrow`.
    natural over-collateralized positions)
 
 **Environment:**
-- Network: Base Sepolia
+- Network: Base mainnet
 - Wallet: `0x8F669B63B3111C8C680Ddd87ea75518cEb860593` (`floe-circuit-1`)
 - floe-agent version: 0.2.0
 - Date: 2026-05-01
@@ -248,7 +145,7 @@ Adding `"repository"` and `"bugs"` blocks to `package.json` is a small change an
 - Date: 2026-05-01
 
 
-## Finding #7: There is no public REST API for Base Sepolia
+## Finding #7: There is no public REST API for Base Sepolia (Update: Floe supports base mainnet only)
 
 **Severity:** High. Blocks anyone trying to run the quickstart on testnet.
 
@@ -601,5 +498,64 @@ Suggests a server-side state-loss bug or a sweeper running on something other th
 3. Either way, the API key returning `Unauthorized` (without saying *why*) is the same as Finding #11 — should surface "agent record not found, please recreate at dev-dashboard.floelabs.xyz/agents."
 
 **Environment:** Dashboard wallet `0x4b2E…677c`, both agents created via `dev-dashboard.floelabs.xyz/agents` UI with 30-day expiry, observed 2026-05-14 and 2026-05-16.
+
+
+## Finding #19: Auto-borrow took longer than the docs suggested
+
+**Severity:** High. It blocked my paid x402 testing both times I ran into it.
+
+The dashboard banner mentions working capital lines opening in "usually a few seconds." In my testing the wait was longer:
+
+- First time I created an agent and ran circuit-1, the loan sat in `pending_match` for a while. I was sick and only came back to it ~2 days later — by then it had matched.
+- After circuit-1 used up the $0.02 of credit Floe had extended, my next x402 call triggered a fresh auto-borrow. That one is still in `pending_match` after several minutes today.
+
+I think this depends on solver bots finding a matching lender intent on-chain, which can take some time. It would be really helpful if the docs reflected this — even a note like "matches typically resolve in seconds, but can take longer if no lender intent is available" would have set expectations.
+
+One small thing that also confused me: each new x402 call that exceeds my `Available` balance seems to trigger its own match (rather than re-using a larger pre-borrow). So if my agent does many small calls, each one waits separately. Pre-borrowing a bigger chunk up front would probably be smoother.
+
+Also, when I ran into this, the error message was `Insufficient credit — your credit line is fully utilized`. The same probe also showed `Headroom to Auto-Borrow: 99.98 USDC`, which read as contradictory. A message like "loan match pending — please retry in 60s" might be clearer.
+
+**Possible improvements:**
+1. Update the "a few seconds" copy to reflect a realistic range, or expose a "match latency" expectation per market.
+2. Make the error messaging consistent with the headroom values — if there's pending credit being borrowed, it'd help to say so.
+3. Maybe consider pre-borrowing a larger chunk once an agent is funded, so smaller calls don't each trigger a new match.
+
+**Environment:** Floe `credit-api`, agent `0xca89a98d…`, observed across 2026-06-05 to 2026-06-08.
+
+
+## Finding #20: Two parallel x402 calls on one agent got into a race with each other
+
+**Severity:** High for the "shared credit line" mental model — it might just need clearer guidance.
+
+In circuit 3 I started by dispatching 3 workers in parallel from one Floe agent, each calling a different x402 endpoint at the same time. The simulated worker finished fine, but both real ones came back with either `Facilitator error: auto_borrow_in_progress` or `Insufficient credit — your credit line is fully utilized`.
+
+It looks like Floe's auto-borrow can only handle one in-flight call at a time per agent — which makes sense once you know it, but the natural mental model is "one credit line, multiple workers can share it." So I tried switching to sequential dispatch instead. That still hit "fully utilized" sometimes because each fresh call needs its own lender match (overlap with Finding #19).
+
+I think the cleanest fix on the developer side is one Floe agent per worker, so each has its own credit line. That feels worth a callout in the docs because right now nothing suggests this constraint exists.
+
+**Possible improvements:**
+1. Maybe the facilitator could queue concurrent x402 calls internally and serialize the borrows behind one outstanding loan — that way the developer doesn't have to think about it.
+2. Or, a short note in the docs: "each agent supports one in-flight x402 call at a time; for parallel workloads, create one agent per worker."
+3. The error message could also say something like "concurrent borrow in progress on this agent" — that would have saved me a debug round.
+
+**Environment:** Floe `credit-api`, 1 agent + 3 workers dispatched via `Promise.all`, 2026-06-08.
+
+
+## Finding #21: Header naming for hand-rolling an x402 server
+
+**Severity:** Medium. Probably hits anyone building the merchant side from scratch instead of using the `@x402/*` middleware.
+
+I built a small x402 server in Hono so I could test the protocol end-to-end. Two header things tripped me up:
+
+1. **Floe sends the signed payment on the retry in a `PAYMENT-SIGNATURE` header**, not `X-PAYMENT`. I had assumed `X-PAYMENT` because that's the convention in a lot of payment APIs (and some earlier x402 examples I read). My server didn't recognize Floe's header and kept returning 402, which surfaced as "Payment was not accepted by resource server" on the client side.
+2. **The server has to return a `PAYMENT-RESPONSE` header on success** — a plain 200 with body isn't enough. Floe interprets a 200 without `PAYMENT-RESPONSE` as "payment not accepted," same error string as above.
+
+Both header names are mentioned in Coinbase's x402 docs, but the Floe docs focus on the facilitator (payer) side and the merchant side is more implicit. If you use `@x402/*` middleware it handles this for you, but I wanted to hand-roll it for the demo and that's where I bumped into it.
+
+**Possible improvements:**
+1. A short docs page covering "building an x402 server from scratch — exact headers in, exact headers out, response shape." This would also be useful as a self-test reference even for SDK users.
+2. The error `Payment was not accepted by resource server` could include a hint — "server returned 402 again" vs "server returned 200 without PAYMENT-RESPONSE" — so the developer knows which half to debug.
+
+**Environment:** Floe `credit-api`, custom Hono server (see `x402-image-stub/`), 2026-06-08.
 
 

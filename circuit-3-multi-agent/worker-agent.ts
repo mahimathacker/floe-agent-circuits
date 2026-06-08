@@ -109,21 +109,38 @@ export async function runWorker(
       output = await callExaSearch(agentkit, company);
       realCall = true;
     } else {
-      // price: simulated, with a small delay so parallel coordination feels real
+      // price: simulated, with a small delay so the timing looks real
       await new Promise((r) => setTimeout(r, 200 + Math.random() * 400));
       output = simulatePriceWorker(company);
     }
 
+    // The SDK returns errors as plain strings rather than throwing. Detect
+    // common Floe / x402 error prefixes so the planner's `ok` count and
+    // budget aggregation match reality.
+    const isError =
+      typeof output === "string" &&
+      /^(Facilitator error|Insufficient credit|Error|Unauthorized)/i.test(
+        output.trim(),
+      );
+    const ok = !isError;
+    const realSucceeded = realCall && ok;
     const durationMs = Date.now() - started;
-    logger.success(`Done in ${durationMs}ms (${realCall ? "real x402" : "simulated"})`);
+
+    if (ok) {
+      logger.success(`Done in ${durationMs}ms (${realCall ? "real x402" : "simulated"})`);
+    } else {
+      logger.warn(
+        `Got back error string after ${durationMs}ms: ${String(output).slice(0, 100)}`,
+      );
+    }
 
     return {
       worker: cfg.name,
       specialization: cfg.specialization,
-      ok: true,
+      ok,
       output,
-      costRaw: cfg.costRaw,
-      realCall,
+      costRaw: realSucceeded ? cfg.costRaw : "0",
+      realCall: realSucceeded,
       durationMs,
     };
   } catch (e) {

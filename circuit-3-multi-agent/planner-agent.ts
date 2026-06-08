@@ -59,11 +59,19 @@ export async function runPlanner(opts: PlannerOptions): Promise<PlannerReport> {
   logger.info(`Spend limit set to ${sessionSpendLimitRaw} raw USDC`);
   metrics?.recordEvent("spend_limit_set", limitResp);
 
-  // 3. Dispatch workers in parallel
-  logger.info("Dispatching workers in parallel…");
-  const results = await Promise.all(
-    workers.map((w) => runWorker(agentkit, w, company)),
-  );
+  // 3. Dispatch workers sequentially.
+  //
+  // Initially designed to run in parallel via Promise.all — but Floe's
+  // auto-borrow serializes on the same credit line: two concurrent x402
+  // calls trigger an `auto_borrow_in_progress` race where only one gets
+  // credit. Running sequentially serializes the borrows cleanly. True
+  // parallel dispatch would require one Floe Agent per worker (see
+  // finding in docs/FINDINGS.md).
+  logger.info(`Dispatching ${workers.length} workers sequentially…`);
+  const results: WorkerResult[] = [];
+  for (const w of workers) {
+    results.push(await runWorker(agentkit, w, company));
+  }
   metrics?.recordEvent("worker_results", results);
 
   // 4. Snapshot credit state after
