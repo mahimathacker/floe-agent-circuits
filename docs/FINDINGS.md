@@ -29,7 +29,7 @@ When creating an API key in the developer dashboard, the "Label (optional)" inpu
 **Environment:** Brave, macOS, `dev-dashboard.floelabs.xyz`, originally observed April 30, 2026. Screenshot: `images/api-key-focus-bug.png`.
 
 
-## Finding #3: API Error Messages Could Be More Specific -
+## Finding #3: API Error Messages Could Be More Specific — RESOLVED
 
 **Status:** Resolved as of 2026-05-11. The error response now includes `primaryReason`, `suggestion`, `rejectionsByCode`, and richer `closestOffers` (with `maxLtvBps`, `minDuration`, `maxDuration`, `minFillAmount`). Original finding kept below as historical record.
 
@@ -352,28 +352,32 @@ This is fine as architecture (Floe layers credit on top of vanilla x402, doesn't
 **Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-12
 
 
-## Finding #13: Floe's "x402 directory" advertises endpoints that don't work
+## Finding #13: Floe's "x402 directory" advertised endpoints that didn't work — DIRECTORY OVERHAULED
 
-**Severity:** Critical. The headline x402 flow can't be completed with any endpoint Floe themselves list as compatible.
+**Status (2026-06-05):** Floe reorganized the directory into new categories (Compute, Voice, Image, Text, Search, Browser, Agent Tools). I tested the new entries and several actually work — Exa Contents (`api.exa.ai/contents`), Exa Search (`api.exa.ai/search`), and Tavily Search (`x402.tavily.com/search`) all return canonical x402 402 responses and successfully complete through Floe's facilitator. The originally-broken media-gen URLs (Spraay, Imference, Genbase, Kodo) are no longer listed. Big improvement.
 
-Probed 9 endpoints from across the directory (media gen, web search, scraping). **0 of 9** actually return HTTP 402:
-- **DNS doesn't resolve:** `api.spraay.ai`, `api.imference.com`
-- **TLS broken:** `api.genbase.ai`, `api.kodo.ai`
-- **Wrong path / 404 on POST:** `api.firecrawl.dev/v1/x402/scrape`, `api.exa.ai/x402/search`, `api.soundside.ai/v1/generate`
-- **Reachable but not x402, returns own 401:** `api.freepik.com/v1/x402/generate`, `api.firecrawl.dev/v1/x402/search`
+Two smaller things still worth flagging from the rewritten directory:
+- Some providers (Firecrawl on the Text page, Venice AI on Compute) appear in the listing but I couldn't get x402 working — Firecrawl returned a 401 expecting its own bearer token, and Venice's 402 advertised a $10 upfront authorization which is too high for most testing.
+- The SDK-level error masking — `x402_fetch` still returns just `Facilitator error: blocked_destination` rather than the structured `reason` field (dns_failure, tls_error, status_code) that `/v1/proxy/check` already exposes. Worth piping through.
 
-A developer trusting the "Floe compatible: Yes" badge hits a wall on their first paid call.
+**Original issue (kept for history):** Initially probed 9 endpoints from across the (then-current) directory and **0 of 9** returned HTTP 402:
+- DNS doesn't resolve: `api.spraay.ai`, `api.imference.com`
+- TLS broken: `api.genbase.ai`, `api.kodo.ai`
+- Wrong path / 404 on POST: `api.firecrawl.dev/v1/x402/scrape`, `api.exa.ai/x402/search`, `api.soundside.ai/v1/generate`
+- Reachable but not x402, returns own 401: `api.freepik.com/v1/x402/generate`, `api.firecrawl.dev/v1/x402/search`
 
-The SDK error makes it worse — `x402_fetch` returns just `Facilitator error: blocked_destination` even though `/v1/proxy/check` has the underlying `reason` (dns_failure, tls_error, status_code). The detail isn't piped through.
+A developer trusting the "Floe compatible: Yes" badge would have hit a wall on their first paid call. The directory rewrite addresses this for most of the new entries.
 
-**Fix:** (1) Audit the directory in CI against `/v1/proxy/check`; flag broken entries. (2) Pipe the real reason through to `x402_fetch` errors. (3) Link `/v1/proxy/check` from the docs as a debugging tool.
+**Suggestion:** Audit the directory in CI against `/v1/proxy/check` (it would catch Firecrawl/Venice-style misalignment) and pipe the real `reason` field through to `x402_fetch` errors.
 
-**Environment:** `floe-agent@0.3.0`, 2026-05-14
+**Environment:** `floe-agent@0.3.0`, originally observed 2026-05-14; new directory verified 2026-06-05.
 
 
-## Finding #14: Floe's facilitator can't parse any standard x402 402-response format; expected wire format is undocumented
+## Finding #14: Floe's facilitator couldn't parse standard x402 402-response format — RESOLVED
 
-**Severity:** Critical. The official x402-foundation server reference libraries are incompatible with Floe, and we can't even reverse-engineer the format without internal docs.
+**Status (2026-06-08):** Alex shipped a v2 facilitator update on 2026-05-14 that improved the parse error (`invalid_base64` with `detail` field), which let me pin the exact mismatch: my `@x402/hono` output was URL-encoded JSON, Floe expects canonical base64 per the Coinbase x402 spec. I updated my own stub (`x402-image-stub/server.ts`) to emit base64, and the full payment round-trip now completes — circuit-1 successfully drew $0.02 from the credit line via the local stub end-to-end (see `circuit-1-research-agent/results/quickstart-2026-06-08.json`).
+
+**Severity (original):** Critical. The official x402-foundation server reference libraries weren't immediately compatible, and the original error message didn't say why.
 
 **Method:** Stood up a custom x402 server (this repo's `x402-image-stub/`), exposed it via `ngrok`, logged every incoming request, and tried four reasonable 402-response formats against Floe's `/v1/proxy/fetch`. Confirmed via server logs that Floe reaches the server every time and returns a parse error.
 
@@ -478,26 +482,15 @@ The Floe dashboard surfaces Coinbase's rejection screen unchanged — no fallbac
 **Environment:** Floe dashboard, 2026-05-14
 
 
-## Finding #18: Agents disappear from dashboard / API before their expiry
+## Finding #18: Agents disappeared from dashboard / API before their expiry — RESOLVED
 
-**Severity:** High. Blocks any multi-day developer workflow. Reproduced twice in 5 days.
+**Status (2026-06-05):** Confirmed fixed by Floe. The agent I created on 2026-06-05 has been stable across multiple test runs and several days. No more "no agents yet" surprises.
 
-Created an agent with 30-day expiry on 2026-05-11 (Borrow Limit 100, Max Rate 15%). On 2026-05-14, awareness probe returned `Error: Unauthorized` on every action and the agent was no longer visible in the dashboard, even though on-chain expiry should have been 2026-06-10. Recreated the agent the same day. **Today (2026-05-16) the second agent is also gone** — created 2026-05-14, expected live until 2026-06-13.
+**Severity (original):** High. Blocked multi-day developer workflows. Reproduced twice in 5 days.
 
-Both times:
-- Connected with the same dashboard wallet (`0x4b2E…677c`)
-- Dashboard shows "No agents yet"
-- API key returns `Error: Unauthorized` on every x402 action
-- On-chain expiry timestamps are still in the future
+**Original issue (kept for history):** Created an agent with 30-day expiry on 2026-05-11 (Borrow Limit 100, Max Rate 15%). On 2026-05-14, awareness probe returned `Error: Unauthorized` on every action and the agent was no longer visible in the dashboard, even though on-chain expiry should have been 2026-06-10. Recreated the same day. On 2026-05-16 the second agent was also gone — created 2026-05-14, expected live until 2026-06-13. Both times connected with the same dashboard wallet (`0x4b2E…677c`), dashboard showed "No agents yet," API key returned `Error: Unauthorized`, and on-chain expiry timestamps were still in the future.
 
-Suggests a server-side state-loss bug or a sweeper running on something other than the on-chain expiry. A developer can't build anything serious if the agent doesn't survive across days.
-
-**Fix:**
-1. Investigate whether agent records are being purged before the on-chain operator permission expires.
-2. If there's an intentional dashboard-side TTL shorter than the on-chain expiry, document it loudly.
-3. Either way, the API key returning `Unauthorized` (without saying *why*) is the same as Finding #11 — should surface "agent record not found, please recreate at dev-dashboard.floelabs.xyz/agents."
-
-**Environment:** Dashboard wallet `0x4b2E…677c`, both agents created via `dev-dashboard.floelabs.xyz/agents` UI with 30-day expiry, observed 2026-05-14 and 2026-05-16.
+**Environment:** Dashboard wallet `0x4b2E…677c`, both agents created via `dev-dashboard.floelabs.xyz/agents` UI with 30-day expiry, observed 2026-05-14 and 2026-05-16. Stable since 2026-05-23.
 
 
 ## Finding #19: Auto-borrow took longer than the docs suggested
