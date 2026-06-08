@@ -1,4 +1,4 @@
-// Planner agent — coordinates the research team and tracks the budget.
+// Planner agent - coordinates the research team and tracks the budget.
 //
 // Sets the session spend limit on the Floe credit line, dispatches the
 // workers in parallel, aggregates their outputs into a single report,
@@ -61,7 +61,7 @@ export async function runPlanner(opts: PlannerOptions): Promise<PlannerReport> {
 
   // 3. Dispatch workers sequentially.
   //
-  // Initially designed to run in parallel via Promise.all — but Floe's
+  // Initially designed to run in parallel via Promise.all - but Floe's
   // auto-borrow serializes on the same credit line: two concurrent x402
   // calls trigger an `auto_borrow_in_progress` race where only one gets
   // credit. Running sequentially serializes the borrows cleanly. True
@@ -79,7 +79,7 @@ export async function runPlanner(opts: PlannerOptions): Promise<PlannerReport> {
   logger.info("Credit after:", creditAfter);
   metrics?.recordEvent("credit_after", creditAfter);
 
-  // 5. Aggregate budget — split real x402 spend from simulated counterfactual
+  // 5. Aggregate budget - split real x402 spend from simulated counterfactual
   const ok = results.filter((r) => r.ok);
   const realSpendRaw = sumRaw(ok.filter((r) => r.realCall).map((r) => r.costRaw));
   const simulatedSpendRaw = sumRaw(
@@ -108,7 +108,7 @@ export async function runPlanner(opts: PlannerOptions): Promise<PlannerReport> {
 
 export function renderReport(report: PlannerReport): string {
   const lines: string[] = [];
-  lines.push(`# Research report — ${report.company}`);
+  lines.push(`# Research report - ${report.company}`);
   lines.push("");
   lines.push(
     `Workers dispatched: ${report.workersDispatched} | completed: ${report.workersCompleted} | duration: ${report.durationMs}ms`,
@@ -119,7 +119,7 @@ export function renderReport(report: PlannerReport): string {
   lines.push("");
   for (const r of report.results) {
     lines.push(
-      `## ${r.worker} (${r.specialization}) — ${r.ok ? "ok" : "failed"} in ${r.durationMs}ms, cost ${r.costRaw} raw USDC (${r.realCall ? "real x402" : "simulated"})`,
+      `## ${r.worker} (${r.specialization}) - ${r.ok ? "ok" : "failed"} in ${r.durationMs}ms, cost ${r.costRaw} raw USDC (${r.realCall ? "real x402" : "simulated"})`,
     );
     lines.push("```json");
     lines.push(JSON.stringify(r.output, null, 2));

@@ -1,18 +1,18 @@
 {
-  "totalDuration": 5707,
+  "totalDuration": 7793,
   "events": [
     {
-      "timestamp": 1780920260640,
+      "timestamp": 1780937747896,
       "event": "credit_before",
-      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 99.98 USDC\n**Utilization**: 0.02%\n**Session Cap**: 0.10 USDC (remaining 0.10 USDC)"
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 99.979 USDC\n**Utilization**: 0.02%\n**Session Cap**: 0.10 USDC (remaining 0.10 USDC)"
     },
     {
-      "timestamp": 1780920261948,
+      "timestamp": 1780937749129,
       "event": "spend_limit_set",
-      "data": "## Spend Limit Set\n\n**Cap**: 0.10 USDC\n**Session Started**: 2026-06-08T12:04:21.000Z"
+      "data": "## Spend Limit Set\n\n**Cap**: 0.10 USDC\n**Session Started**: 2026-06-08T16:55:48.000Z"
     },
     {
-      "timestamp": 1780920263584,
+      "timestamp": 1780937750748,
       "event": "worker_results",
       "data": [
         {
@@ -22,7 +22,7 @@
           "output": "Insufficient credit — your credit line is fully utilized.",
           "costRaw": "0",
           "realCall": false,
-          "durationMs": 657
+          "durationMs": 676
         },
         {
           "worker": "worker-B-news",
@@ -31,7 +31,7 @@
           "output": "Insufficient credit — your credit line is fully utilized.",
           "costRaw": "0",
           "realCall": false,
-          "durationMs": 662
+          "durationMs": 539
         },
         {
           "worker": "worker-C-price",
@@ -47,18 +47,18 @@
                 "ETH"
               ]
             },
-            "source": "simulated — Floe x402 directory has no financial-data category yet (see findings)"
+            "source": "simulated - Floe x402 directory has no financial-data category yet (see findings)"
           },
           "costRaw": "0",
           "realCall": false,
-          "durationMs": 316
+          "durationMs": 404
         }
       ]
     },
     {
-      "timestamp": 1780920263969,
+      "timestamp": 1780937751119,
       "event": "credit_after",
-      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 99.98 USDC\n**Utilization**: 0.02%\n**Session Cap**: 0.10 USDC (remaining 0.10 USDC)"
+      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 99.979 USDC\n**Utilization**: 0.02%\n**Session Cap**: 0.10 USDC (remaining 0.10 USDC)"
     }
   ]
 }

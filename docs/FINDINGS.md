@@ -1,4 +1,4 @@
-## FINDING #1: floe-agent package has broken dependencies — RESOLVED in 0.3.0
+## FINDING #1: floe-agent package has broken dependencies - RESOLVED in 0.3.0
 **Severity:** Critical - Blocked AgentKit integration
 **Status:** Resolved upstream in `floe-agent@0.3.0` (verified 2026-05-11).
 
@@ -20,22 +20,22 @@
 
 3. **Breaking action-name changes in 0.3.0.** `instant_borrow` no longer exists. The action surface is now `get_markets`, `get_loan`, `post_lend_intent`, `post_borrow_intent`, `match_intents`, `request_credit`, `check_credit_status`, `repay_credit`, etc. Any code or docs that referenced the 0.2.0 names needs to be updated.
 
-## Finding #2: API Key "Label" input lost focus after every keystroke — RESOLVED
+## Finding #2: API Key "Label" input lost focus after every keystroke - RESOLVED
 
 **Severity:** Medium. Fixed since I originally reported.
 
-When creating an API key in the developer dashboard, the "Label (optional)" input lost focus after every single character I typed — I had to click back into the field for each letter. Looked like the parent component was re-rendering on every onChange. Fixed now.
+When creating an API key in the developer dashboard, the "Label (optional)" input lost focus after every single character I typed - I had to click back into the field for each letter. Looked like the parent component was re-rendering on every onChange. Fixed now.
 
 **Environment:** Brave, macOS, `dev-dashboard.floelabs.xyz`, originally observed April 30, 2026. Screenshot: `images/api-key-focus-bug.png`.
 
 
-## Finding #3: API Error Messages Could Be More Specific — RESOLVED
+## Finding #3: API Error Messages Could Be More Specific - RESOLVED
 
 **Status:** Resolved as of 2026-05-11. The error response now includes `primaryReason`, `suggestion`, `rejectionsByCode`, and richer `closestOffers` (with `maxLtvBps`, `minDuration`, `maxDuration`, `minFillAmount`). Original finding kept below as historical record.
 
 **Original issue (kept for history):** `NoLiquidityError` didn't say *why* lenders rejected my borrow. I tried to borrow $10 USDC for 7 days and got back a generic "no matching lend intents" with a list of closest offers. To figure out the real reason (the 7-day duration was below the lenders' 21-day minimum), I had to query `/v1/credit/offers` separately and manually compare parameters against each offer's constraints. This added a lot of debugging time.
 
-**Now (2026-05-11):** The error response includes `primaryReason`, `suggestion`, `rejectionsByCode`, and richer `closestOffers` fields — exactly the kind of structured "why did it fail" data I was hoping for. Much faster to debug now.
+**Now (2026-05-11):** The error response includes `primaryReason`, `suggestion`, `rejectionsByCode`, and richer `closestOffers` fields - exactly the kind of structured "why did it fail" data I was hoping for. Much faster to debug now.
 
 
 ## Finding #4: I could not figure out what `minLtvBps` does, and it kept blocking my borrow
@@ -287,7 +287,7 @@ The error doesn't say which field was missing or that a default should have been
 **Suggested fixes:**
 1. **Run args through the schema inside each action handler** so `.default(...)` actually takes effect. One-line change per action: `args = Schema.parse(args)`.
 2. OR remove `.default(...)` from the schemas and document those fields as required.
-3. Make error messages name the missing field — `Cannot convert undefined to a BigInt` plus a stack trace pointing to user code would have saved an hour.
+3. Make error messages name the missing field - `Cannot convert undefined to a BigInt` plus a stack trace pointing to user code would have saved an hour.
 
 **Environment:**
 - Package: `floe-agent@0.3.0` + `@coinbase/agentkit@0.10.4`
@@ -307,7 +307,7 @@ const x402 = x402ActionProvider({
 });
 ```
 
-It doesn't say where `FLOE_AGENT_API_KEY` comes from. A reasonable assumption is that it's the same key you got from the "API Keys" page in the dashboard — the one used for MCP. It isn't.
+It doesn't say where `FLOE_AGENT_API_KEY` comes from. A reasonable assumption is that it's the same key you got from the "API Keys" page in the dashboard - the one used for MCP. It isn't.
 
 **What's actually required:** A separate "Agent" must first be created from a different page of the dashboard: `dev-dashboard.floelabs.xyz/agents` → **Create agent** → fill in name, borrow limit, max rate, expiry. The dashboard provisions a Privy wallet server-side and submits an on-chain `setOperator` delegation. Only then does the Agent receive its own API key, which is what `FLOE_AGENT_API_KEY` must hold.
 
@@ -331,7 +331,7 @@ The error doesn't say what's missing or where to fix it. A developer with a vali
    FLOE_AGENT_API_KEY=...  # for x402 actions; requires a dashboard-created Agent
    ```
 
-**Validation after fix:** After creating an agent with Borrow Limit 100 USDC, Max Rate 15%, Expiry 30 days, the same smoke test (`npm run circuit-1:awareness`) returns real data — see [circuit-1-research-agent/results/awareness-2026-05-11.json](../circuit-1-research-agent/results/awareness-2026-05-11.json).
+**Validation after fix:** After creating an agent with Borrow Limit 100 USDC, Max Rate 15%, Expiry 30 days, the same smoke test (`npm run circuit-1:awareness`) returns real data - see [circuit-1-research-agent/results/awareness-2026-05-11.json](../circuit-1-research-agent/results/awareness-2026-05-11.json).
 
 **Environment:**
 - Package: `floe-agent@0.3.0` + `@coinbase/agentkit@0.10.4`
@@ -343,7 +343,7 @@ The error doesn't say what's missing or where to fix it. A developer with a vali
 
 **Severity:** Low.
 
-`https://credit-api.floelabs.xyz` works for *paying* (Bearer-auth via `FLOE_AGENT_API_KEY`), but `@x402/hono`'s `HTTPFacilitatorClient` can't use it on the server side — gets `401 Missing required auth headers`. Server-side x402 verification needs a different facilitator (e.g. `https://facilitator.openx402.ai`).
+`https://credit-api.floelabs.xyz` works for *paying* (Bearer-auth via `FLOE_AGENT_API_KEY`), but `@x402/hono`'s `HTTPFacilitatorClient` can't use it on the server side - gets `401 Missing required auth headers`. Server-side x402 verification needs a different facilitator (e.g. `https://facilitator.openx402.ai`).
 
 This is fine as architecture (Floe layers credit on top of vanilla x402, doesn't compete with merchant-side facilitators), but the x402 docs page doesn't say it. A developer building both sides wastes time trying the same URL on both.
 
@@ -352,13 +352,13 @@ This is fine as architecture (Floe layers credit on top of vanilla x402, doesn't
 **Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-12
 
 
-## Finding #13: Floe's "x402 directory" advertised endpoints that didn't work — DIRECTORY OVERHAULED
+## Finding #13: Floe's "x402 directory" advertised endpoints that didn't work - DIRECTORY OVERHAULED
 
-**Status (2026-06-05):** Floe reorganized the directory into new categories (Compute, Voice, Image, Text, Search, Browser, Agent Tools). I tested the new entries and several actually work — Exa Contents (`api.exa.ai/contents`), Exa Search (`api.exa.ai/search`), and Tavily Search (`x402.tavily.com/search`) all return canonical x402 402 responses and successfully complete through Floe's facilitator. The originally-broken media-gen URLs (Spraay, Imference, Genbase, Kodo) are no longer listed. Big improvement.
+**Status (2026-06-05):** Floe reorganized the directory into new categories (Compute, Voice, Image, Text, Search, Browser, Agent Tools). I tested the new entries and several actually work - Exa Contents (`api.exa.ai/contents`), Exa Search (`api.exa.ai/search`), and Tavily Search (`x402.tavily.com/search`) all return canonical x402 402 responses and successfully complete through Floe's facilitator. The originally-broken media-gen URLs (Spraay, Imference, Genbase, Kodo) are no longer listed. Big improvement.
 
 Two smaller things still worth flagging from the rewritten directory:
-- Some providers (Firecrawl on the Text page, Venice AI on Compute) appear in the listing but I couldn't get x402 working — Firecrawl returned a 401 expecting its own bearer token, and Venice's 402 advertised a $10 upfront authorization which is too high for most testing.
-- The SDK-level error masking — `x402_fetch` still returns just `Facilitator error: blocked_destination` rather than the structured `reason` field (dns_failure, tls_error, status_code) that `/v1/proxy/check` already exposes. Worth piping through.
+- Some providers (Firecrawl on the Text page, Venice AI on Compute) appear in the listing but I couldn't get x402 working - Firecrawl returned a 401 expecting its own bearer token, and Venice's 402 advertised a $10 upfront authorization which is too high for most testing.
+- The SDK-level error masking - `x402_fetch` still returns just `Facilitator error: blocked_destination` rather than the structured `reason` field (dns_failure, tls_error, status_code) that `/v1/proxy/check` already exposes. Worth piping through.
 
 **Original issue (kept for history):** Initially probed 9 endpoints from across the (then-current) directory and **0 of 9** returned HTTP 402:
 - DNS doesn't resolve: `api.spraay.ai`, `api.imference.com`
@@ -373,9 +373,9 @@ A developer trusting the "Floe compatible: Yes" badge would have hit a wall on t
 **Environment:** `floe-agent@0.3.0`, originally observed 2026-05-14; new directory verified 2026-06-05.
 
 
-## Finding #14: Floe's facilitator couldn't parse standard x402 402-response format — RESOLVED
+## Finding #14: Floe's facilitator couldn't parse standard x402 402-response format - RESOLVED
 
-**Status (2026-06-08):** Alex shipped a v2 facilitator update on 2026-05-14 that improved the parse error (`invalid_base64` with `detail` field), which let me pin the exact mismatch: my `@x402/hono` output was URL-encoded JSON, Floe expects canonical base64 per the Coinbase x402 spec. I updated my own stub (`x402-image-stub/server.ts`) to emit base64, and the full payment round-trip now completes — circuit-1 successfully drew $0.02 from the credit line via the local stub end-to-end (see `circuit-1-research-agent/results/quickstart-2026-06-08.json`).
+**Status (2026-06-08):** Alex shipped a v2 facilitator update on 2026-05-14 that improved the parse error (`invalid_base64` with `detail` field), which let me pin the exact mismatch: my `@x402/hono` output was URL-encoded JSON, Floe expects canonical base64 per the Coinbase x402 spec. I updated my own stub (`x402-image-stub/server.ts`) to emit base64, and the full payment round-trip now completes - circuit-1 successfully drew $0.02 from the credit line via the local stub end-to-end (see `circuit-1-research-agent/results/quickstart-2026-06-08.json`).
 
 **Severity (original):** Critical. The official x402-foundation server reference libraries weren't immediately compatible, and the original error message didn't say why.
 
@@ -383,8 +383,8 @@ A developer trusting the "Floe compatible: Yes" badge would have hit a wall on t
 
 | Attempt | Format of 402 response | Floe's reply to the agent |
 |---|---|---|
-| 1 | `@x402/hono` default — base64 JSON in `payment-required` header | `Failed to parse PAYMENT-REQUIRED header` |
-| 2 | No header — JSON requirements in response body only | `402 response missing PAYMENT-REQUIRED header` |
+| 1 | `@x402/hono` default - base64 JSON in `payment-required` header | `Failed to parse PAYMENT-REQUIRED header` |
+| 2 | No header - JSON requirements in response body only | `402 response missing PAYMENT-REQUIRED header` |
 | 3 | Raw `JSON.stringify(...)` literal in `payment-required` header | `Failed to parse PAYMENT-REQUIRED header` |
 | 4 | URL-encoded JSON in `payment-required` header | `Failed to parse PAYMENT-REQUIRED header` |
 
@@ -392,19 +392,19 @@ A developer trusting the "Floe compatible: Yes" badge would have hit a wall on t
 - Floe absolutely requires a `payment-required` header (attempt 2 proves it).
 - None of the three obvious JSON encodings work (1, 3, 4).
 - The exact encoding/schema Floe expects isn't documented on the [x402 facilitator page](https://floe-labs.gitbook.io/docs/components/x402) or any of the developer pages I could find.
-- The error message itself doesn't say which part failed (header name? encoding? schema?) — so trial-and-error has no signal beyond "still wrong."
+- The error message itself doesn't say which part failed (header name? encoding? schema?) - so trial-and-error has no signal beyond "still wrong."
 
 This means any developer trying to build a Floe-compatible x402 server faces an undocumented black-box format. The official `@x402/*` libraries (Coinbase's reference impl) don't work.
 
 **Fix, in priority order:**
 1. **Document the exact 402-response wire format** Floe expects: header name (`payment-required` capitalization), encoding (base64? URL-encoded? raw? structured-fields?), schema (field names, scheme values).
-2. **Make the error message actionable** — `Failed to parse PAYMENT-REQUIRED header` should at least say *what* failed (e.g. *"Expected base64-encoded JSON conforming to schema X; got base64 decode error"* or *"Unknown scheme: exact"*).
+2. **Make the error message actionable** - `Failed to parse PAYMENT-REQUIRED header` should at least say *what* failed (e.g. *"Expected base64-encoded JSON conforming to schema X; got base64 decode error"* or *"Unknown scheme: exact"*).
 3. **Publish a minimal reference x402 server** in Floe's GitHub that demonstrates the correct format. Even 30 lines of Hono/Express that Floe testers verify works.
 4. **Contribute to `@x402/*` upstream** if Floe's format is the canonical one, or accept the `@x402/*` format if not.
 
 **Environment:** `@x402/hono@2.11.0`, `floe-agent@0.3.0`, 2026-05-14. Server logs and the four stub variants are committed under `x402-image-stub/` for repro.
 
-**Update 2026-05-14 (post Alex's v2 fix on credit-api):** The error message is now actionable — suggested fix #2 above is shipped. New response:
+**Update 2026-05-14 (post Alex's v2 fix on credit-api):** The error message is now actionable - suggested fix #2 above is shipped. New response:
 
 ```json
 {
@@ -425,11 +425,11 @@ So **Floe is spec-correct** and `@x402/hono` is non-compliant for our use. Resol
 
 **Severity:** Medium. The documented debugging endpoint can't validate the majority of real x402 APIs.
 
-Almost every paid x402 endpoint in the wild requires POST (image gen, search, scraping, data submission). Floe's `/v1/proxy/check` probes the URL with GET — POST-only endpoints return 404 or 405, and the probe wrongly reports `"x402": false`.
+Almost every paid x402 endpoint in the wild requires POST (image gen, search, scraping, data submission). Floe's `/v1/proxy/check` probes the URL with GET - POST-only endpoints return 404 or 405, and the probe wrongly reports `"x402": false`.
 
 Repro:
 ```bash
-# Our own stub returns proper 402 on POST, 404 on GET — yet:
+# Our own stub returns proper 402 on POST, 404 on GET - yet:
 curl "https://credit-api.floelabs.xyz/v1/proxy/check?url=https://<ngrok-url>/image"
 # → {"x402":false,"status":404,"message":"This URL does not require x402 payment"}
 ```
@@ -444,8 +444,8 @@ curl "https://credit-api.floelabs.xyz/v1/proxy/check?url=https://<ngrok-url>/ima
 **Severity:** Low (naming/docs). High confusion factor.
 
 Two distinct keys exist with different scopes:
-- `floe_live_*` — developer / dashboard-level key, used for managing agents
-- `floe_*` — per-agent runtime key, used for x402 calls
+- `floe_live_*` - developer / dashboard-level key, used for managing agents
+- `floe_*` - per-agent runtime key, used for x402 calls
 
 The docs' curl examples (e.g. on the Media Generation directory page) show:
 ```
@@ -453,7 +453,7 @@ curl -X POST https://credit-api.floelabs.xyz/v1/proxy/fetch \
   -H "Authorization: Bearer $FLOE_API_KEY" ...
 ```
 
-But `floe_live_*` fails on `/v1/proxy/fetch` with `Missing or invalid Authorization header`. Only `floe_*` (the runtime key) works. The variable name `$FLOE_API_KEY` suggests "the API key" — most developers will plug in the obvious one from the dashboard's API Keys page and hit confusion.
+But `floe_live_*` fails on `/v1/proxy/fetch` with `Missing or invalid Authorization header`. Only `floe_*` (the runtime key) works. The variable name `$FLOE_API_KEY` suggests "the API key" - most developers will plug in the obvious one from the dashboard's API Keys page and hit confusion.
 
 **Fix:** Rename the variable in docs to `$FLOE_AGENT_API_KEY` (or `$FLOE_RUNTIME_KEY`), and add a one-line note distinguishing the two key types on the API Keys docs page.
 
@@ -466,13 +466,13 @@ But `floe_live_*` fails on `/v1/proxy/fetch` with `Missing or invalid Authorizat
 
 Floe's [Fiat on/off-ramp docs](https://floe-labs.gitbook.io/docs/components/onramp) state:
 
-> *"Coverage: Visa, Mastercard, Apple Pay, Google Pay — ACH and SEPA bank transfers — 100+ countries supported"*
+> *"Coverage: Visa, Mastercard, Apple Pay, Google Pay - ACH and SEPA bank transfers - 100+ countries supported"*
 
 In practice clicking **"Buy USDC & deposit"** in the dashboard hands the user off to Coinbase, which responds:
 
-> *"Buys Not Supported — Coinbase does not currently support buys in your country."*
+> *"Buys Not Supported - Coinbase does not currently support buys in your country."*
 
-The Floe dashboard surfaces Coinbase's rejection screen unchanged — no fallback path, no link to alternative funding instructions, no mention that "100+ countries" is actually constrained by the underlying provider's policies.
+The Floe dashboard surfaces Coinbase's rejection screen unchanged - no fallback path, no link to alternative funding instructions, no mention that "100+ countries" is actually constrained by the underlying provider's policies.
 
 **Fix:**
 1. Update the docs to clarify country coverage is limited by Coinbase's policies, and link to Coinbase's current supported-country list.
@@ -482,13 +482,13 @@ The Floe dashboard surfaces Coinbase's rejection screen unchanged — no fallbac
 **Environment:** Floe dashboard, 2026-05-14
 
 
-## Finding #18: Agents disappeared from dashboard / API before their expiry — RESOLVED
+## Finding #18: Agents disappeared from dashboard / API before their expiry - RESOLVED
 
 **Status (2026-06-05):** Confirmed fixed by Floe. The agent I created on 2026-06-05 has been stable across multiple test runs and several days. No more "no agents yet" surprises.
 
 **Severity (original):** High. Blocked multi-day developer workflows. Reproduced twice in 5 days.
 
-**Original issue (kept for history):** Created an agent with 30-day expiry on 2026-05-11 (Borrow Limit 100, Max Rate 15%). On 2026-05-14, awareness probe returned `Error: Unauthorized` on every action and the agent was no longer visible in the dashboard, even though on-chain expiry should have been 2026-06-10. Recreated the same day. On 2026-05-16 the second agent was also gone — created 2026-05-14, expected live until 2026-06-13. Both times connected with the same dashboard wallet (`0x4b2E…677c`), dashboard showed "No agents yet," API key returned `Error: Unauthorized`, and on-chain expiry timestamps were still in the future.
+**Original issue (kept for history):** Created an agent with 30-day expiry on 2026-05-11 (Borrow Limit 100, Max Rate 15%). On 2026-05-14, awareness probe returned `Error: Unauthorized` on every action and the agent was no longer visible in the dashboard, even though on-chain expiry should have been 2026-06-10. Recreated the same day. On 2026-05-16 the second agent was also gone - created 2026-05-14, expected live until 2026-06-13. Both times connected with the same dashboard wallet (`0x4b2E…677c`), dashboard showed "No agents yet," API key returned `Error: Unauthorized`, and on-chain expiry timestamps were still in the future.
 
 **Environment:** Dashboard wallet `0x4b2E…677c`, both agents created via `dev-dashboard.floelabs.xyz/agents` UI with 30-day expiry, observed 2026-05-14 and 2026-05-16. Stable since 2026-05-23.
 
@@ -499,18 +499,18 @@ The Floe dashboard surfaces Coinbase's rejection screen unchanged — no fallbac
 
 The dashboard banner mentions working capital lines opening in "usually a few seconds." In my testing the wait was longer:
 
-- First time I created an agent and ran circuit-1, the loan sat in `pending_match` for a while. I was sick and only came back to it ~2 days later — by then it had matched.
+- First time I created an agent and ran circuit-1, the loan sat in `pending_match` for a while. I was sick and only came back to it ~2 days later - by then it had matched.
 - After circuit-1 used up the $0.02 of credit Floe had extended, my next x402 call triggered a fresh auto-borrow. That one is still in `pending_match` after several minutes today.
 
-I think this depends on solver bots finding a matching lender intent on-chain, which can take some time. It would be really helpful if the docs reflected this — even a note like "matches typically resolve in seconds, but can take longer if no lender intent is available" would have set expectations.
+I think this depends on solver bots finding a matching lender intent on-chain, which can take some time. It would be really helpful if the docs reflected this - even a note like "matches typically resolve in seconds, but can take longer if no lender intent is available" would have set expectations.
 
 One small thing that also confused me: each new x402 call that exceeds my `Available` balance seems to trigger its own match (rather than re-using a larger pre-borrow). So if my agent does many small calls, each one waits separately. Pre-borrowing a bigger chunk up front would probably be smoother.
 
-Also, when I ran into this, the error message was `Insufficient credit — your credit line is fully utilized`. The same probe also showed `Headroom to Auto-Borrow: 99.98 USDC`, which read as contradictory. A message like "loan match pending — please retry in 60s" might be clearer.
+Also, when I ran into this, the error message was `Insufficient credit - your credit line is fully utilized`. The same probe also showed `Headroom to Auto-Borrow: 99.98 USDC`, which read as contradictory. A message like "loan match pending - please retry in 60s" might be clearer.
 
 **Possible improvements:**
 1. Update the "a few seconds" copy to reflect a realistic range, or expose a "match latency" expectation per market.
-2. Make the error messaging consistent with the headroom values — if there's pending credit being borrowed, it'd help to say so.
+2. Make the error messaging consistent with the headroom values - if there's pending credit being borrowed, it'd help to say so.
 3. Maybe consider pre-borrowing a larger chunk once an agent is funded, so smaller calls don't each trigger a new match.
 
 **Environment:** Floe `credit-api`, agent `0xca89a98d…`, observed across 2026-06-05 to 2026-06-08.
@@ -518,18 +518,18 @@ Also, when I ran into this, the error message was `Insufficient credit — your 
 
 ## Finding #20: Two parallel x402 calls on one agent got into a race with each other
 
-**Severity:** High for the "shared credit line" mental model — it might just need clearer guidance.
+**Severity:** High for the "shared credit line" mental model - it might just need clearer guidance.
 
-In circuit 3 I started by dispatching 3 workers in parallel from one Floe agent, each calling a different x402 endpoint at the same time. The simulated worker finished fine, but both real ones came back with either `Facilitator error: auto_borrow_in_progress` or `Insufficient credit — your credit line is fully utilized`.
+In circuit 3 I started by dispatching 3 workers in parallel from one Floe agent, each calling a different x402 endpoint at the same time. The simulated worker finished fine, but both real ones came back with either `Facilitator error: auto_borrow_in_progress` or `Insufficient credit - your credit line is fully utilized`.
 
-It looks like Floe's auto-borrow can only handle one in-flight call at a time per agent — which makes sense once you know it, but the natural mental model is "one credit line, multiple workers can share it." So I tried switching to sequential dispatch instead. That still hit "fully utilized" sometimes because each fresh call needs its own lender match (overlap with Finding #19).
+It looks like Floe's auto-borrow can only handle one in-flight call at a time per agent - which makes sense once you know it, but the natural mental model is "one credit line, multiple workers can share it." So I tried switching to sequential dispatch instead. That still hit "fully utilized" sometimes because each fresh call needs its own lender match (overlap with Finding #19).
 
 I think the cleanest fix on the developer side is one Floe agent per worker, so each has its own credit line. That feels worth a callout in the docs because right now nothing suggests this constraint exists.
 
 **Possible improvements:**
-1. Maybe the facilitator could queue concurrent x402 calls internally and serialize the borrows behind one outstanding loan — that way the developer doesn't have to think about it.
+1. Maybe the facilitator could queue concurrent x402 calls internally and serialize the borrows behind one outstanding loan - that way the developer doesn't have to think about it.
 2. Or, a short note in the docs: "each agent supports one in-flight x402 call at a time; for parallel workloads, create one agent per worker."
-3. The error message could also say something like "concurrent borrow in progress on this agent" — that would have saved me a debug round.
+3. The error message could also say something like "concurrent borrow in progress on this agent" - that would have saved me a debug round.
 
 **Environment:** Floe `credit-api`, 1 agent + 3 workers dispatched via `Promise.all`, 2026-06-08.
 
@@ -541,13 +541,13 @@ I think the cleanest fix on the developer side is one Floe agent per worker, so 
 I built a small x402 server in Hono so I could test the protocol end-to-end. Two header things tripped me up:
 
 1. **Floe sends the signed payment on the retry in a `PAYMENT-SIGNATURE` header**, not `X-PAYMENT`. I had assumed `X-PAYMENT` because that's the convention in a lot of payment APIs (and some earlier x402 examples I read). My server didn't recognize Floe's header and kept returning 402, which surfaced as "Payment was not accepted by resource server" on the client side.
-2. **The server has to return a `PAYMENT-RESPONSE` header on success** — a plain 200 with body isn't enough. Floe interprets a 200 without `PAYMENT-RESPONSE` as "payment not accepted," same error string as above.
+2. **The server has to return a `PAYMENT-RESPONSE` header on success** - a plain 200 with body isn't enough. Floe interprets a 200 without `PAYMENT-RESPONSE` as "payment not accepted," same error string as above.
 
 Both header names are mentioned in Coinbase's x402 docs, but the Floe docs focus on the facilitator (payer) side and the merchant side is more implicit. If you use `@x402/*` middleware it handles this for you, but I wanted to hand-roll it for the demo and that's where I bumped into it.
 
 **Possible improvements:**
-1. A short docs page covering "building an x402 server from scratch — exact headers in, exact headers out, response shape." This would also be useful as a self-test reference even for SDK users.
-2. The error `Payment was not accepted by resource server` could include a hint — "server returned 402 again" vs "server returned 200 without PAYMENT-RESPONSE" — so the developer knows which half to debug.
+1. A short docs page covering "building an x402 server from scratch - exact headers in, exact headers out, response shape." This would also be useful as a self-test reference even for SDK users.
+2. The error `Payment was not accepted by resource server` could include a hint - "server returned 402 again" vs "server returned 200 without PAYMENT-RESPONSE" - so the developer knows which half to debug.
 
 **Environment:** Floe `credit-api`, custom Hono server (see `x402-image-stub/`), 2026-06-08.
 

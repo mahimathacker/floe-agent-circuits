@@ -1,4 +1,4 @@
-// x402 image stub — hand-rolled 402 response with base64-encoded
+// x402 image stub - hand-rolled 402 response with base64-encoded
 // `PAYMENT-REQUIRED` header, matching the canonical x402 spec per
 // Coinbase's docs:
 //   https://docs.cdp.coinbase.com/x402/support/faq
@@ -23,7 +23,7 @@ const USDC_BASE_MAINNET = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 const app = new Hono();
 
-// Log every incoming request — we want to see Floe's request shape.
+// Log every incoming request - we want to see Floe's request shape.
 app.use("*", async (c, next) => {
   const headers: Record<string, string> = {};
   c.req.raw.headers.forEach((v, k) => {
@@ -69,7 +69,7 @@ app.post("/image", async (c) => {
     const requirementsJson = JSON.stringify(requirements);
     const requirementsB64 = Buffer.from(requirementsJson, "utf8").toString("base64");
     console.log(
-      "→ No X-PAYMENT yet — returning 402 with BASE64-encoded PAYMENT-REQUIRED header",
+      "→ No X-PAYMENT yet - returning 402 with BASE64-encoded PAYMENT-REQUIRED header",
     );
     return new Response(requirementsJson, {
       status: 402,
@@ -80,7 +80,7 @@ app.post("/image", async (c) => {
     });
   }
 
-  // Signed payment header present — Floe signed and is retrying.
+  // Signed payment header present - Floe signed and is retrying.
   // In a production server we'd validate the EIP-3009 signature here and
   // call the facilitator's settle endpoint. For the demo we trust Floe
   // and ack the settlement.

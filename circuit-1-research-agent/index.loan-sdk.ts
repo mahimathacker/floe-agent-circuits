@@ -3,15 +3,15 @@
 // Why hybrid: floe-agent's `request_credit` scans 2M blocks of logs in one
 // call, which most free RPCs reject. See Finding #9. The SDK's signed
 // actions (manual_match_credit, check_credit_status, repay_credit) don't
-// have this problem — they read one piece of contract state or send a
+// have this problem - they read one piece of contract state or send a
 // transaction. So we discover offers via REST and use the SDK for the
 // on-chain steps.
 //
 // Flow:
-//   1. GET /v1/credit/offers (REST)            — pick a lend intent
-//   2. manual_match_credit (SDK)               — open the loan on-chain
-//   3. check_credit_status (SDK)               — read loan state
-//   4. repay_credit (SDK)                      — close the loan on-chain
+//   1. GET /v1/credit/offers (REST)            - pick a lend intent
+//   2. manual_match_credit (SDK)               - open the loan on-chain
+//   3. check_credit_status (SDK)               - read loan state
+//   4. repay_credit (SDK)                      - close the loan on-chain
 //
 // Floe is mainnet-only (Finding #7), so .env needs NETWORK_ID=base-mainnet.
 // Steps 2-4 require a funded mainnet wallet.
@@ -104,7 +104,7 @@ async function runCircuit1ViaSdk() {
     const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
     if (!floeAgentApiKey) {
       throw new Error(
-        "FLOE_AGENT_API_KEY missing — create an Agent at dev-dashboard.floelabs.xyz/agents",
+        "FLOE_AGENT_API_KEY missing - create an Agent at dev-dashboard.floelabs.xyz/agents",
       );
     }
 
@@ -128,7 +128,7 @@ async function runCircuit1ViaSdk() {
       maxInterestRateBps: MAX_INTEREST_RATE_BPS,
       minLtvBps: MIN_LTV_BPS,
       duration: DURATION_SECONDS,
-      // Schema defaults aren't applied via AgentKit's invoke — pass them
+      // Schema defaults aren't applied via AgentKit's invoke - pass them
       // explicitly or BigInt(undefined) will throw inside the SDK. See
       // Finding #10.
       expirySeconds: "300",

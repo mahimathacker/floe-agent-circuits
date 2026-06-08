@@ -1,4 +1,4 @@
-// Circuit 3 — Multi-Agent Research Team.
+// Circuit 3 - Multi-Agent Research Team.
 //
 // One planner + three specialized workers (product / news / price) all
 // sharing one Floe credit line. Demonstrates the multi-agent coordination
@@ -26,7 +26,7 @@ const metrics = new Metrics();
 const COMPANY = process.env.RESEARCH_COMPANY ?? "Coinbase";
 
 // Session spend cap. Total simulated worker spend should stay under this.
-// Set to $0.10 — generous over the workers' simulated $0.081 total.
+// Set to $0.10 - generous over the workers' simulated $0.081 total.
 const SESSION_SPEND_LIMIT_RAW = "100000";
 
 async function run() {
@@ -36,7 +36,7 @@ async function run() {
     const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
     if (!floeAgentApiKey) {
       throw new Error(
-        "FLOE_AGENT_API_KEY missing — create an Agent at dev-dashboard.floelabs.xyz/agents",
+        "FLOE_AGENT_API_KEY missing - create an Agent at dev-dashboard.floelabs.xyz/agents",
       );
     }
 

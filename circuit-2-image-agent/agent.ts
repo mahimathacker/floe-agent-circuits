@@ -1,7 +1,7 @@
 // Circuit 2 helpers.
-// - tryBorrowWithAdaptiveCeiling: real agent behavior — raise ceiling on
+// - tryBorrowWithAdaptiveCeiling: real agent behavior - raise ceiling on
 //   rate-driven rejection, give up otherwise
-// - runImageAgent: full session loop — borrow, x402 spend per image, repay
+// - runImageAgent: full session loop - borrow, x402 spend per image, repay
 
 import type { AgentKit } from "@coinbase/agentkit";
 import { Logger, type Metrics, invokeAction } from "../shared/utils.js";
@@ -70,7 +70,7 @@ export async function tryBorrowWithAdaptiveCeiling(
     const raw = await invokeAction<unknown>(agentkit, "manual_match_credit", {
       ...params,
       maxInterestRateBps: ceilingBps,
-      // Schema defaults are silently dropped (Finding #10) — pass explicitly.
+      // Schema defaults are silently dropped (Finding #10) - pass explicitly.
       matcherCommissionBps: params.matcherCommissionBps ?? "50",
       expirySeconds: params.expirySeconds ?? "300",
     });
@@ -88,7 +88,7 @@ export async function tryBorrowWithAdaptiveCeiling(
 
       if (reasonClassified === "rate" && current + raise <= max) {
         agentLogger.warn(
-          `Rejected at ${ceilingBps} bps for rate reason — raising by ${raise} bps`,
+          `Rejected at ${ceilingBps} bps for rate reason - raising by ${raise} bps`,
         );
         current += raise;
         continue;
@@ -96,8 +96,8 @@ export async function tryBorrowWithAdaptiveCeiling(
 
       agentLogger.error(
         reasonClassified === "rate"
-          ? `Rejected at ${ceilingBps} bps — reached max acceptable ceiling, giving up`
-          : `Rejected at ${ceilingBps} bps — non-rate reason, can't fix by raising`,
+          ? `Rejected at ${ceilingBps} bps - reached max acceptable ceiling, giving up`
+          : `Rejected at ${ceilingBps} bps - non-rate reason, can't fix by raising`,
       );
       return {
         success: false,
@@ -209,7 +209,7 @@ export async function runImageAgent(
       }
     }
   } else {
-    agentLogger.warn("Skipping image generation — borrow did not succeed");
+    agentLogger.warn("Skipping image generation - borrow did not succeed");
   }
 
   let repayResult: unknown;

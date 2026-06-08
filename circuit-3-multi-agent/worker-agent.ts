@@ -1,11 +1,11 @@
-// Worker agent — one specialized researcher in a multi-agent team.
+// Worker agent - one specialized researcher in a multi-agent team.
 //
 // Workers A (product) and B (news) make REAL x402 calls through Floe's
 // facilitator to verified-working endpoints from the directory:
-//   - A: POST https://api.exa.ai/contents — extract company website ($0.001)
-//   - B: POST https://api.exa.ai/search   — semantic search ($0.005)
+//   - A: POST https://api.exa.ai/contents - extract company website ($0.001)
+//   - B: POST https://api.exa.ai/search   - semantic search ($0.005)
 //
-// Worker C (price) stays simulated — Floe's x402 directory has no
+// Worker C (price) stays simulated - Floe's x402 directory has no
 // financial-data category yet, so there's no production endpoint to
 // hit. This is itself a writeup-worthy gap (filed in docs/FINDINGS.md).
 
@@ -17,7 +17,7 @@ export type Specialization = "product" | "news" | "price";
 export interface WorkerConfig {
   name: string;
   specialization: Specialization;
-  // Reported cost in raw USDC (6 decimals) — for budget accounting.
+  // Reported cost in raw USDC (6 decimals) - for budget accounting.
   // For real workers this is the directory-listed price; for the
   // simulated worker this is what the call *would* cost.
   costRaw: string;
@@ -83,7 +83,7 @@ function simulatePriceWorker(company: string): unknown {
     company,
     feeds: { BTC: "$67,400", ETH: "$2,500", relevantTokens: ["BTC", "ETH"] },
     source:
-      "simulated — Floe x402 directory has no financial-data category yet (see findings)",
+      "simulated - Floe x402 directory has no financial-data category yet (see findings)",
   };
 }
 
@@ -162,12 +162,12 @@ export const WORKERS: WorkerConfig[] = [
   {
     name: "worker-A-product",
     specialization: "product",
-    costRaw: "1000", // $0.001 — Exa Contents per directory
+    costRaw: "1000", // $0.001 - Exa Contents per directory
   },
   {
     name: "worker-B-news",
     specialization: "news",
-    costRaw: "5000", // $0.005 — Exa Search per directory
+    costRaw: "5000", // $0.005 - Exa Search per directory
   },
   {
     name: "worker-C-price",

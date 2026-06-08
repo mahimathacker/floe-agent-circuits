@@ -1,4 +1,4 @@
-// Circuit 2 — Image Agent (full agent behavior, SDK path).
+// Circuit 2 - Image Agent (full agent behavior, SDK path).
 //
 // Story: an AI image agent has a goal (N images) and a rate preference
 // (won't pay above 6%). It borrows, generates images via x402, and
@@ -7,7 +7,7 @@
 // dashboard-configured max rate of 15%). Reports whether the agent's
 // preferred ceiling held over the session.
 //
-// Discovery: REST `/v1/credit/offers` (no log scan needed — see Finding #9).
+// Discovery: REST `/v1/credit/offers` (no log scan needed - see Finding #9).
 // Borrow:    SDK `manual_match_credit` (signed by CDP wallet).
 // Spend:     SDK `x402_fetch` (auto-pays from the Agent's credit line).
 // Repay:     SDK `repay_credit`.
@@ -27,20 +27,20 @@ const MARKET_ID =
 const TARGET_IMAGES = 5;
 const SPEND_LIMIT_RAW = "2000000"; // $2 cap on x402 spend this session
 
-const BORROW_AMOUNT = "2000000"; // $2 USDC — covers 5 images + slack
+const BORROW_AMOUNT = "2000000"; // $2 USDC - covers 5 images + slack
 const COLLATERAL_AMOUNT = "20000000000000000"; // 0.02 WETH
-const DURATION_SECONDS = "1296000"; // 15 days — fits current offers' maxDuration
+const DURATION_SECONDS = "1296000"; // 15 days - fits current offers' maxDuration
 const MIN_LTV_BPS = "1000";
 
-const INITIAL_CEILING_BPS = "600"; // 6% — agent's preference
-const MAX_ACCEPTABLE_CEILING_BPS = "1500"; // 15% — matches dashboard Agent cap
+const INITIAL_CEILING_BPS = "600"; // 6% - agent's preference
+const MAX_ACCEPTABLE_CEILING_BPS = "1500"; // 15% - matches dashboard Agent cap
 const CEILING_RAISE_BPS = 100; // raise by 1% per rate-rejection
 
 // Points at our own x402-paywalled image stub server (see x402-image-stub/).
 // On Wednesday: run `npm run x402-server` + `ngrok http 8787`, then set
 // X402_IMAGE_STUB_URL in .env to the ngrok public URL.
 //
-// Fallback — verified Floe-compatible image-gen endpoints from the Floe
+// Fallback - verified Floe-compatible image-gen endpoints from the Floe
 // docs (https://floe-labs.gitbook.io/docs/developers/x402-directory/media-generation).
 // Swap one in if our own stub has issues:
 //   - Spraay     POST https://api.spraay.ai/v1/run          $0.02 USDC
@@ -60,7 +60,7 @@ const PROMPTS = [
 ];
 
 const IMAGE_REQUESTS: ImageRequest[] = PROMPTS.map((prompt, i) => ({
-  label: `image ${i + 1} — "${prompt}"`,
+  label: `image ${i + 1} - "${prompt}"`,
   url: `${IMAGE_STUB_URL}/image`,
   method: "POST",
   headers: { "Content-Type": "application/json" },
@@ -114,7 +114,7 @@ async function run() {
     const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
     if (!floeAgentApiKey) {
       throw new Error(
-        "FLOE_AGENT_API_KEY missing — create an Agent at dev-dashboard.floelabs.xyz/agents",
+        "FLOE_AGENT_API_KEY missing - create an Agent at dev-dashboard.floelabs.xyz/agents",
       );
     }
 

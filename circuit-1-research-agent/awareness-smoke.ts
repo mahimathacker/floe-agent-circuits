@@ -1,4 +1,4 @@
-// Awareness smoke test — runs today, no chain funds required.
+// Awareness smoke test - runs today, no chain funds required.
 //
 // Exercises only the x402 agent-awareness actions, which take identity
 // from `facilitatorApiKey` (Bearer) rather than the wallet:
@@ -23,7 +23,7 @@ async function run() {
   const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
   if (!floeAgentApiKey) {
     throw new Error(
-      "FLOE_AGENT_API_KEY missing — create an Agent at dev-dashboard.floelabs.xyz/agents",
+      "FLOE_AGENT_API_KEY missing - create an Agent at dev-dashboard.floelabs.xyz/agents",
     );
   }
 

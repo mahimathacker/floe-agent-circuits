@@ -1,4 +1,4 @@
-// Circuit 1 — Credit-Line Quickstart.
+// Circuit 1 - Credit-Line Quickstart.
 //
 // The simplest possible Floe demo: an agent makes one x402-paid call
 // using nothing but its Floe credit line. No manual loan, no collateral,
@@ -6,7 +6,7 @@
 // advertised, the call should succeed and credit gets drawn down.
 //
 // This is intentionally minimal. The point of circuit 1 is to measure
-// the *onboarding DX* of Floe's headline product flow — the experience
+// the *onboarding DX* of Floe's headline product flow - the experience
 // of the first 5 minutes a new developer has with Floe. The deep
 // notes live in circuit-1-research-agent/README.md.
 //
@@ -22,13 +22,13 @@ import { getWalletProvider } from "../shared/wallet.js";
 const logger = new Logger("Circuit-1");
 const metrics = new Metrics();
 
-// $1 session cap. Tight on purpose — the test is "credit works", not
+// $1 session cap. Tight on purpose - the test is "credit works", not
 // "spend a lot". Plenty for one x402 call.
 const SPEND_LIMIT_RAW = "1000000";
 
 // One x402-paid call.
 //
-// Floe's facilitator enforces a destination allowlist — random URLs
+// Floe's facilitator enforces a destination allowlist - random URLs
 // (incl. localhost) get rejected with `blocked_destination`. Default
 // to a Floe-verified endpoint. Other cheap options from the directory:
 //   - Soundside image:  https://api.soundside.ai/v1/generate   $0.02
@@ -44,7 +44,7 @@ async function run() {
   const floeAgentApiKey = process.env.FLOE_AGENT_API_KEY;
   if (!floeAgentApiKey) {
     throw new Error(
-      "FLOE_AGENT_API_KEY missing — create an Agent at dev-dashboard.floelabs.xyz/agents",
+      "FLOE_AGENT_API_KEY missing - create an Agent at dev-dashboard.floelabs.xyz/agents",
     );
   }
 

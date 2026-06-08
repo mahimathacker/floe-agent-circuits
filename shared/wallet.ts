@@ -6,7 +6,7 @@ export const CIRCUITS = ["circuit-1", "circuit-2", "circuit-3"] as const;
 export type CircuitId = (typeof CIRCUITS)[number];
 
 // One CDP wallet across all circuits. The user is a single signing
-// identity that owns and delegates to multiple Floe Agents — same shape
+// identity that owns and delegates to multiple Floe Agents - same shape
 // as a real product. Fund this one address; every circuit uses it.
 const SHARED_WALLET_NAME = "floe-main";
 

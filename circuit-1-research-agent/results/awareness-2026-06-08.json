@@ -1,23 +1,23 @@
 {
-  "totalDuration": 7247,
+  "totalDuration": 6248,
   "events": [
     {
-      "timestamp": 1780923544568,
+      "timestamp": 1780927495793,
       "event": "get_credit_remaining",
-      "data": "## Credit Remaining\n\n**Available**: 0.00 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 99.98 USDC\n**Utilization**: 0.02%\n**Session Cap**: 0.10 USDC (remaining 0.10 USDC)"
+      "data": "## Credit Remaining\n\n**Available**: 0.001 USDC\n**Credit Limit**: 100.00 USDC\n**Headroom to Auto-Borrow**: 99.98 USDC\n**Utilization**: 0.02%\n**Session Cap**: 0.10 USDC (remaining 0.10 USDC)"
     },
     {
-      "timestamp": 1780923546077,
+      "timestamp": 1780927496835,
       "event": "get_loan_state",
-      "data": "## Loan State\n\n**State**: borrowing\n**Reason**: facility_loan_pending_match\n**Details**: {\n  \"source\": \"facility\",\n  \"status\": \"pending_match\",\n  \"available\": \"0\",\n  \"creditLimit\": \"100000000\"\n}"
+      "data": "## Loan State\n\n**State**: idle\n**Reason**: no_active_borrow_or_repay\n**Details**: {\n  \"available\": \"1000\",\n  \"creditLimit\": \"100000000\",\n  \"utilizationBps\": 2\n}"
     },
     {
-      "timestamp": 1780923546489,
+      "timestamp": 1780927497179,
       "event": "get_spend_limit",
       "data": "## Spend Limit\n\n**Cap**: 0.10 USDC\n**Spent this session**: 0.00 USDC\n**Remaining**: 0.10 USDC"
     },
     {
-      "timestamp": 1780923546851,
+      "timestamp": 1780927497561,
       "event": "list_credit_thresholds",
       "data": "## Credit Thresholds\n\nNone registered."
     }

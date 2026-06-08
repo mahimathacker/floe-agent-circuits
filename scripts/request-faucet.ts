@@ -67,7 +67,7 @@ async function requestFaucet() {
         if (isRateLimited && consecutiveBackoffs < MAX_CONSECUTIVE_BACKOFFS) {
           consecutiveBackoffs++;
           logger.warn(
-            `Rate limited at call ${calls}. Backoff ${consecutiveBackoffs}/${MAX_CONSECUTIVE_BACKOFFS} — sleeping ${RATE_LIMIT_BACKOFF_MS / 1000}s...`,
+            `Rate limited at call ${calls}. Backoff ${consecutiveBackoffs}/${MAX_CONSECUTIVE_BACKOFFS} - sleeping ${RATE_LIMIT_BACKOFF_MS / 1000}s...`,
           );
           await sleep(RATE_LIMIT_BACKOFF_MS);
           continue;
@@ -82,7 +82,7 @@ async function requestFaucet() {
       if (calls % BALANCE_REFRESH_EVERY === 0) {
         if (lastTx) await walletProvider.waitForTransactionReceipt(lastTx);
         balance = await walletProvider.getBalance();
-        logger.info(`  ${calls} calls — balance: ${formatEther(balance)}`);
+        logger.info(`  ${calls} calls - balance: ${formatEther(balance)}`);
       }
     }
 
@@ -107,7 +107,7 @@ async function requestFaucet() {
         network: "base-sepolia",
         token,
       });
-      logger.info(`  tx: ${transactionHash} — waiting for confirmation`);
+      logger.info(`  tx: ${transactionHash} - waiting for confirmation`);
       await walletProvider.waitForTransactionReceipt(transactionHash);
       logger.success(`  ${token.toUpperCase()} received`);
     }
