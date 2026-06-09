@@ -1,7 +1,7 @@
 {
   "name": "floe-agent-circuits",
   "version": "1.0.0",
-  "description": "Floe Labs - 3 Working Capital Circuits",
+  "description": "Floe Labs - 4 Working Capital Circuits + x402 merchant stub",
   "main": "index.js",
   "keywords": [],
   "author": "",
@@ -20,7 +20,6 @@
     "faucet": "tsx --env-file=.env scripts/request-faucet.ts",
     "wrap-eth": "tsx --env-file=.env scripts/wrap-eth.ts",
     "balance": "tsx --env-file=.env scripts/check-balance.ts",
-    "all": "tsx --env-file=.env scripts/run-all-circuits.ts",
     "build": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },

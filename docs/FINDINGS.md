@@ -282,7 +282,7 @@ The error doesn't say which field was missing or that a default should have been
 
 **Root cause:** AgentKit's `invoke(args)` passes the raw object straight to the action handler. It doesn't run `args` through the Zod schema's `parse`, so `.default(...)` is never evaluated. Every "optional with default" field becomes effectively required.
 
-**Workaround:** pass every defaulted field explicitly, even the ones the schema says are optional. In circuit-1's `manual_match_credit` call we now pass `expirySeconds: "300"` and `matcherCommissionBps: "50"` even though both are documented as defaults.
+**Workaround:** pass every defaulted field explicitly, even the ones the schema says are optional. In circuit-1's `manual_match_credit` call I now pass `expirySeconds: "300"` and `matcherCommissionBps: "50"` even though both are documented as defaults.
 
 **Suggested fixes:**
 1. **Run args through the schema inside each action handler** so `.default(...)` actually takes effect. One-line change per action: `args = Schema.parse(args)`.
@@ -320,7 +320,7 @@ Error: Unauthorized
 
 The error doesn't say what's missing or where to fix it. A developer with a valid MCP key reasonably assumes their setup is complete and spends time debugging code or env wiring instead of looking for an additional dashboard step.
 
-**How we figured it out:** Only after the `Unauthorized` errors persisted across re-keying, re-running, and verifying the env var did a screenshot of the dashboard's "Agents" tab make it obvious that the credentials live somewhere else entirely.
+**How I figured it out:** Only after the `Unauthorized` errors persisted across re-keying, re-running, and verifying the env var did a screenshot of the dashboard's "Agents" tab make it obvious that the credentials live somewhere else entirely.
 
 **Suggested fixes:**
 1. **Add the Agent-creation step to the SDK quickstart.** One paragraph + a screenshot of the dashboard page is enough.
@@ -414,11 +414,11 @@ This means any developer trying to build a Floe-compatible x402 server faces an 
 }
 ```
 
-With this we can confirm the exact mismatch: Floe's facilitator decodes the `PAYMENT-REQUIRED` header as base64. Our default `@x402/hono` output was URL-encoded JSON. Per Coinbase's [x402 FAQ](https://docs.cdp.coinbase.com/x402/support/faq) the canonical spec is:
+With this I could confirm the exact mismatch: Floe's facilitator decodes the `PAYMENT-REQUIRED` header as base64. The default `@x402/hono` output was URL-encoded JSON. Per Coinbase's [x402 FAQ](https://docs.cdp.coinbase.com/x402/support/faq) the canonical spec is:
 
 > *"Parse the PAYMENT-REQUIRED header (base64-encoded payment requirements)."*
 
-So **Floe is spec-correct** and `@x402/hono` is non-compliant for our use. Resolution path: replaced `@x402/hono`'s middleware in `x402-image-stub/server.ts` with a hand-rolled response that base64-encodes the header per the Coinbase spec. The remaining open work is a separate, upstream finding against the `@x402/*` reference libraries (out of scope here).
+So **Floe is spec-correct** and `@x402/hono` is non-compliant for this case. I replaced `@x402/hono`'s middleware in `x402-image-stub/server.ts` with a hand-rolled response that base64-encodes the header per the Coinbase spec. The remaining open work is a separate, upstream finding against the `@x402/*` reference libraries (out of scope here).
 
 
 ## Finding #15: `/v1/proxy/check` only sends GET, can't verify POST-only x402 endpoints
@@ -429,7 +429,7 @@ Almost every paid x402 endpoint in the wild requires POST (image gen, search, sc
 
 Repro:
 ```bash
-# Our own stub returns proper 402 on POST, 404 on GET - yet:
+# My own stub returns proper 402 on POST, 404 on GET - yet:
 curl "https://credit-api.floelabs.xyz/v1/proxy/check?url=https://<ngrok-url>/image"
 # → {"x402":false,"status":404,"message":"This URL does not require x402 payment"}
 ```
